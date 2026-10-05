@@ -19,6 +19,7 @@
     "./telegram": "./src/telegram/index.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "bullmq": "^6.3.11",
     "docx": "^9.8.1",
     "ioredis": "^6.0.0",

@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { generateDocument } from "./generate";
+import Anthropic from "@anthropic-ai/sdk";
 import { RateLimitError } from "openai";
+import { toAnthropicAIError } from "./providers/anthropic";
 import { toAIError } from "./providers/openai";
 import { AIRouter } from "./router";
 import { AIError, type AIProvider, type JsonRequest } from "./types";
@@ -203,5 +205,20 @@ describe("toAIError", () => {
     expect(toAIError(rateLimit("Quota exceeded. Please retry in 17h16m2.8s."), "p").kind).toBe("unavailable");
     expect(toAIError(rateLimit("GenerateRequestsPerDayPerProjectPerModel-FreeTier"), "p").kind).toBe("unavailable");
     expect(toAIError(rateLimit("You exceeded your quota", "insufficient_quota"), "p").kind).toBe("unavailable");
+  });
+});
+
+describe("toAnthropicAIError", () => {
+  const apiError = (status: number) =>
+    Anthropic.APIError.generate(status, { type: "error", error: { type: "x", message: "m" } }, "m", new Headers());
+
+  it("maps HTTP errors to router kinds", () => {
+    expect(toAnthropicAIError(apiError(429), "a").kind).toBe("rate_limit");
+    expect(toAnthropicAIError(apiError(529), "a").kind).toBe("transient"); // overloaded
+    expect(toAnthropicAIError(apiError(500), "a").kind).toBe("transient");
+    expect(toAnthropicAIError(apiError(401), "a").kind).toBe("unavailable");
+    expect(toAnthropicAIError(apiError(404), "a").kind).toBe("unavailable");
+    expect(toAnthropicAIError(apiError(400), "a").kind).toBe("bad_request");
+    expect(toAnthropicAIError(new Anthropic.APIConnectionTimeoutError(), "a").kind).toBe("transient");
   });
 });

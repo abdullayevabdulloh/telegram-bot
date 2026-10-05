@@ -364,7 +364,7 @@ worker’lar uchun umumiy.
 - Promptlar provayderga bog‘liq emas; JSON chiqishini ikkala tomonda ham bir xil zod sxema tekshiradi
 - Zaxira modelning **o‘zbek tilidagi sifati** ishga tushirishdan oldin bir xil test mavzulari bilan sinab ko‘riladi
 - Zaxira ishlatilgan generatsiyalar ulushi monitoring qilinadi ([25-bo‘lim](#-25-monitoring-va-loglar))
-- Zaxira sozlanmagan bo‘lsa (`AI_FALLBACK_PROVIDER` bo‘sh) — faqat asosiy provayder ishlaydi
+- Zaxira — Claude (Anthropic); sozlanmagan bo‘lsa (`ANTHROPIC_API_KEY` bo‘sh) — faqat asosiy provayder ishlaydi
 
 ---
 
@@ -1082,10 +1082,10 @@ OPENAI_MODEL_FAST=
 OPENAI_TIMEOUT_MS=120000
 
 # --- AI (zaxira, ixtiyoriy) ---
-# anthropic | gemini; bo'sh bo'lsa zaxira o'chirilgan
-AI_FALLBACK_PROVIDER=
-AI_FALLBACK_API_KEY=
-AI_FALLBACK_MODEL=
+# Claude (Anthropic); kalit bo'sh bo'lsa zaxira o'chirilgan
+ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=claude-opus-5-5
+ANTHROPIC_TIMEOUT_MS=300000
 
 # --- Backend ---
 PORT=4000

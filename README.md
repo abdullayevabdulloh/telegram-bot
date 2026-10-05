@@ -399,6 +399,10 @@ OPENAI_MODEL=
 OPENAI_MODEL_FAST=
 OPENAI_TIMEOUT_MS=120000
 
+# Zaxira AI (ixtiyoriy) — Claude; kalit bo'sh bo'lsa zaxira o'chirilgan
+ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=claude-opus-5-5
+
 # Worker
 WORKER_CONCURRENCY=5
 
@@ -410,8 +414,7 @@ BOT_WEBHOOK_PORT=8080
 ADMIN_IDS=
 ```
 
-2-bosqichda qo‘shiladi: `AI_FALLBACK_PROVIDER`, `AI_FALLBACK_API_KEY`, `AI_FALLBACK_MODEL` (zaxira AI),
-`PORT`, `JWT_SECRET` (backend) va `web/.env.local` (`API_URL`, `WEB_URL`, `NEXT_PUBLIC_BOT_USERNAME`).
+2-bosqichda qo‘shiladi: `PORT`, `JWT_SECRET` (backend) va `web/.env.local` (`API_URL`, `WEB_URL`, `NEXT_PUBLIC_BOT_USERNAME`).
 
 ---
 

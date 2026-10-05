@@ -24,6 +24,11 @@ const EnvSchema = z.object({
   OPENAI_MODEL_FAST: optional,
   OPENAI_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
 
+  // Fallback provider: used only when OpenAI-compatible AI fails. Empty key = no fallback.
+  ANTHROPIC_API_KEY: optional,
+  ANTHROPIC_MODEL: z.string().default("claude-opus-5-5"),
+  ANTHROPIC_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
+
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(5),
 
   BOT_TOKEN: optional,
