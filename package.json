@@ -1,0 +1,29 @@
+{
+  "name": "edugen",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "worker",
+    "bot"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -n worker,bot -c cyan,magenta \"npm run dev -w @edugen/worker\" \"npm run dev -w @edugen/bot\"",
+    "start": "concurrently -n worker,bot -c cyan,magenta \"npm run start -w @edugen/worker\" \"npm run start -w @edugen/bot\"",
+    "db:up": "docker compose up -d mongo redis",
+    "db:down": "docker compose down",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "concurrently": "^10.0.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}
