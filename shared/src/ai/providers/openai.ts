@@ -58,12 +58,20 @@ export class OpenAIProvider implements AIProvider {
   }
 }
 
-function toAIError(error: unknown, provider: string): AIError {
+/**
+ * A 429 that will not clear soon: OpenAI's out-of-credit code, or a Gemini per-day quota
+ * (its message names a "...PerDay..." quota or asks to retry in hours). Retrying only wastes time.
+ */
+function isExhaustedQuota(error: InstanceType<typeof RateLimitError>): boolean {
+  return error.code === "insufficient_quota" || /PerDay|retry in \d+h/i.test(error.message);
+}
+
+export function toAIError(error: unknown, provider: string): AIError {
   if (error instanceof AIError) return error;
   const message = error instanceof Error ? error.message : String(error);
   const wrap = (kind: AIError["kind"]) => new AIError(kind, message, provider, { cause: error });
 
-  if (error instanceof RateLimitError) return wrap(error.code === "insufficient_quota" ? "unavailable" : "rate_limit");
+  if (error instanceof RateLimitError) return wrap(isExhaustedQuota(error) ? "unavailable" : "rate_limit");
   if (error instanceof AuthenticationError || error instanceof PermissionDeniedError || error instanceof NotFoundError) {
     return wrap("unavailable");
   }

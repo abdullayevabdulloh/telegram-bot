@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { generateDocument } from "./generate";
+import { RateLimitError } from "openai";
+import { toAIError } from "./providers/openai";
 import { AIRouter } from "./router";
 import { AIError, type AIProvider, type JsonRequest } from "./types";
 
@@ -186,5 +188,20 @@ describe("AI output schemas", () => {
       expect(format.json_schema.strict).toBe(true);
       expect(format.json_schema.schema).toMatchObject({ type: "object", additionalProperties: false });
     }
+  });
+});
+
+describe("toAIError", () => {
+  const rateLimit = (message: string, code?: string) =>
+    RateLimitError.generate(429, { error: { message, code } }, message, new Headers()) as RateLimitError;
+
+  it("treats a short 429 as a rate limit", () => {
+    expect(toAIError(rateLimit("Too many requests. Please retry in 12.5s."), "p").kind).toBe("rate_limit");
+  });
+
+  it("treats an exhausted daily quota as unavailable", () => {
+    expect(toAIError(rateLimit("Quota exceeded. Please retry in 17h16m2.8s."), "p").kind).toBe("unavailable");
+    expect(toAIError(rateLimit("GenerateRequestsPerDayPerProjectPerModel-FreeTier"), "p").kind).toBe("unavailable");
+    expect(toAIError(rateLimit("You exceeded your quota", "insufficient_quota"), "p").kind).toBe("unavailable");
   });
 });

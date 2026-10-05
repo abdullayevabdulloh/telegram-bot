@@ -46,7 +46,9 @@ export function createGenerateProcessor(deps: { router: AIRouter; telegram: Tele
       logger.info({ generationId, type: generation.type, ...result.ai }, "Generation done");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      const permanent = error instanceof AIError && (error.kind === "bad_request" || error.kind === "refusal");
+      // unavailable = every provider is out of quota or misconfigured: a retry in seconds cannot help
+      const permanent =
+        error instanceof AIError && (error.kind === "bad_request" || error.kind === "refusal" || error.kind === "unavailable");
       const lastAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
       logger.error({ generationId, err: message, attempt: job.attemptsMade + 1, permanent }, "Generation attempt failed");
 
