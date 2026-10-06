@@ -1,5 +1,4 @@
 import { LANGUAGE_NAMES } from "@edugen/shared/i18n";
-import { effectivePlan, isTemplateAllowed } from "@edugen/shared/limits";
 import { LANGUAGES, TEMPLATE_IDS, UI_LANGUAGES, type Language, type TemplateId, type UiLanguage } from "@edugen/shared/schema";
 import { templates } from "@edugen/shared/templates";
 import { Markup, type Telegraf } from "telegraf";
@@ -63,15 +62,12 @@ export function registerSettings(bot: Telegraf<BotContext>) {
 
   bot.action("set:tpl", async (ctx) => {
     await ctx.answerCbQuery();
-    const plan = effectivePlan(ctx.user);
     const current = ctx.user.settings.defaultTemplate;
     await editOrReply(
       ctx,
       ctx.t("settings.chooseTemplate"),
       Markup.inlineKeyboard([
-        TEMPLATE_IDS.map((id) =>
-          Markup.button.callback(`${mark(id === current)}${templates[id].name}${isTemplateAllowed(id, plan) ? "" : " 🔒"}`, `stp:${id}`),
-        ),
+        ...rows(TEMPLATE_IDS.map((id) => Markup.button.callback(`${mark(id === current)}${templates[id].name}`, `stp:${id}`)), 3),
         back(ctx),
       ]),
     );
@@ -95,11 +91,8 @@ export function registerSettings(bot: Telegraf<BotContext>) {
     await sendSettings(ctx);
   });
 
-  bot.action(/^stp:(modern|minimal|dark)$/, async (ctx) => {
+  bot.action(new RegExp(`^stp:(${TEMPLATE_IDS.join("|")})$`), async (ctx) => {
     const template = ctx.match[1] as TemplateId;
-    if (!isTemplateAllowed(template, effectivePlan(ctx.user))) {
-      return ctx.answerCbQuery(ctx.t("new.templateLocked"), { show_alert: true });
-    }
     ctx.user.settings.defaultTemplate = template;
     await ctx.user.save();
     await ctx.answerCbQuery(ctx.t("settings.saved"));

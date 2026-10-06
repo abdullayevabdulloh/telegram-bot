@@ -1,7 +1,7 @@
 import mongoose, { type Types } from "mongoose";
 import { Generation, type GenerationDocument, type IGeneration, type UserDocument } from "../db/models";
 import { logger } from "../logger";
-import { clampLength, consumeQuota, dailyLimit, effectivePlan, isTemplateAllowed, refundQuota, tashkentDate } from "../limits";
+import { clampLength, consumeQuota, dailyLimit, refundQuota, tashkentDate } from "../limits";
 import { enqueueGenerate, enqueueNotify } from "../queue";
 import { TopicSchema, type DocType, type Language, type TemplateId, type TitleMeta } from "../schema";
 import { latinToCyrillic, cyrillicToLatin, mapStrings } from "../translit";
@@ -35,7 +35,6 @@ export interface StartGenerationInput {
 
 /** Checks limits, stores a pending generation and queues it for the worker. */
 export async function startGeneration(input: StartGenerationInput): Promise<GenerationDocument> {
-  const plan = effectivePlan(input.user);
   const userId = input.user._id;
 
   const running = await Generation.exists({
@@ -45,7 +44,7 @@ export async function startGeneration(input: StartGenerationInput): Promise<Gene
   });
   if (running) throw new AlreadyGeneratingError();
 
-  const limit = dailyLimit(plan, "generation");
+  const limit = dailyLimit("generation");
   const quotaDate = tashkentDate();
   if (!(await consumeQuota(userId, "generation", limit, quotaDate))) throw new QuotaExceededError(limit);
 
@@ -55,15 +54,15 @@ export async function startGeneration(input: StartGenerationInput): Promise<Gene
     type: input.type,
     topic: TopicSchema.parse(input.topic),
     language: input.language,
-    template: isTemplateAllowed(input.template, plan) ? input.template : "modern",
-    length: clampLength(input.type, plan, input.length),
+    template: input.template,
+    length: clampLength(input.type, input.length),
     meta: input.meta ?? {},
     quotaDate,
     botContext: input.botContext,
   });
 
   try {
-    await enqueueGenerate(generation.id, plan);
+    await enqueueGenerate(generation.id);
   } catch (error) {
     await failGeneration(generation._id, "Could not queue the job");
     throw error;

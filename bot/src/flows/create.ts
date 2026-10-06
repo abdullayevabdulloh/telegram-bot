@@ -1,5 +1,5 @@
 import { LANGUAGE_NAMES } from "@edugen/shared/i18n";
-import { effectivePlan, isTemplateAllowed, lengthPresets } from "@edugen/shared/limits";
+import { lengthPresets } from "@edugen/shared/limits";
 import { escapeHtml } from "@edugen/shared/telegram";
 import {
   LANGUAGES,
@@ -35,7 +35,7 @@ export async function askType(ctx: BotContext) {
 async function askLength(ctx: BotContext) {
   const type = ctx.session.type!;
   ctx.session.step = "choose_length";
-  const presets = lengthPresets(type, effectivePlan(ctx.user));
+  const presets = lengthPresets(type);
   await ctx.reply(
     ctx.t(`new.chooseLength.${LENGTH_RULES[type].unit}`),
     Markup.inlineKeyboard([
@@ -47,12 +47,11 @@ async function askLength(ctx: BotContext) {
 
 async function askTemplate(ctx: BotContext) {
   ctx.session.step = "choose_template";
-  const plan = effectivePlan(ctx.user);
   const buttons = TEMPLATE_IDS.map((id) => {
-    const mark = !isTemplateAllowed(id, plan) ? " 🔒" : id === ctx.user.settings.defaultTemplate ? " ✓" : "";
+    const mark = id === ctx.user.settings.defaultTemplate ? " ✓" : "";
     return Markup.button.callback(`🎨 ${templates[id].name}${mark}`, `tpl:${id}`);
   });
-  await ctx.reply(ctx.t("new.chooseTemplate"), Markup.inlineKeyboard([buttons, [cancelButton(ctx)]]));
+  await ctx.reply(ctx.t("new.chooseTemplate"), Markup.inlineKeyboard([...rows(buttons, 3), [cancelButton(ctx)]]));
 }
 
 async function showConfirm(ctx: BotContext) {
@@ -114,7 +113,7 @@ export function registerCreate(bot: Telegraf<BotContext>) {
   bot.action(/^l:(\d+)$/, async (ctx) => {
     const { type } = ctx.session;
     const length = Number(ctx.match[1]);
-    if (!type || !lengthPresets(type, effectivePlan(ctx.user)).includes(length)) {
+    if (!type || !lengthPresets(type).includes(length)) {
       await ctx.answerCbQuery(ctx.t("new.expired"));
       return;
     }
@@ -139,12 +138,9 @@ export function registerCreate(bot: Telegraf<BotContext>) {
     await askTemplate(ctx);
   });
 
-  bot.action(/^tpl:(modern|minimal|dark)$/, async (ctx) => {
+  bot.action(new RegExp(`^tpl:(${TEMPLATE_IDS.join("|")})$`), async (ctx) => {
     const template = ctx.match[1] as TemplateId;
     if (!ctx.session.type || !ctx.session.topic || !ctx.session.length) return ctx.answerCbQuery(ctx.t("new.expired"));
-    if (!isTemplateAllowed(template, effectivePlan(ctx.user))) {
-      return ctx.answerCbQuery(ctx.t("new.templateLocked"), { show_alert: true });
-    }
     ctx.session.template = template;
     await ctx.answerCbQuery();
     await showConfirm(ctx);

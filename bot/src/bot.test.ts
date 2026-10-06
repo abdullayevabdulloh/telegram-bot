@@ -85,8 +85,6 @@ describe("bot conversation", () => {
     const templates = await click("l:10");
     expect(buttons(templates)).toEqual(["tpl:modern", "tpl:minimal", "tpl:dark", "cancel"]);
 
-    expect((await click("tpl:dark")).find((c) => c.method === "answerCallbackQuery")?.payload).toMatchObject({ show_alert: true });
-
     const confirm = await click("tpl:modern");
     expect(texts(confirm).join("\n")).toContain("O‘zbekcha (lotin)");
     await click("chl");
@@ -114,12 +112,13 @@ describe("bot conversation", () => {
     await send("/new");
     await click("t:work");
     const lengths = await send("Raqamli iqtisodiyot");
-    expect(buttons(lengths)).toEqual(["l:6", "l:8", "l:10", "cancel"]); // Free plan: ≤ 10 pages
-    await click("l:8");
+    expect(buttons(lengths)).toEqual(["l:6", "l:8", "l:10", "l:15", "l:20", "l:25", "cancel"]); // no paid plan: all lengths are open
+    await click("l:25");
     await send("OTM: TDIU\nTalaba: Aliyev Vali\nGuruh: IQ-21");
-    await click("tpl:minimal");
+    await click("tpl:dark"); // was Pro-only
     await click("go");
     const generation = await Generation.findOne().lean();
+    expect(generation).toMatchObject({ template: "dark", length: 25 });
     expect(generation?.meta).toEqual({ university: "TDIU", student: "Aliyev Vali", group: "IQ-21" });
   });
 

@@ -28,7 +28,6 @@ export const uzLatn = {
     "Titul varaq uchun ma’lumotlarni nusxalab, to‘ldirib yuboring (keraksiz qatorlarni o‘chiring):\n\n<code>OTM: \nFakultet: \nFan: \nTalaba: \nGuruh: \nO‘qituvchi: \nShahar: </code>\n\nYoki «O‘tkazib yuborish»ni bosing.",
   "new.metaEmpty": "Hech qanday ma’lumot topilmadi. Namunadagidek «Nom: qiymat» ko‘rinishida yuboring yoki «O‘tkazib yuborish»ni bosing.",
   "new.chooseTemplate": "Dizayn shablonini tanlang:",
-  "new.templateLocked": "🔒 Bu shablon Pro tarifda mavjud",
   "new.confirm":
     "Tekshirib oling:\n\n📄 Tur: {type}\n📝 Mavzu: <b>{topic}</b>\n🌐 Til: {language}\n📏 Hajm: {length}\n🎨 Shablon: {template}",
   "new.create": "✅ Yaratish",
@@ -80,7 +79,7 @@ export const uzLatn = {
   "history.title": "🗂 Oxirgi hujjatlaringiz:",
 
   "plan.info":
-    "💎 Tarif: <b>{plan}</b>\n\nBugun qoldi: <b>{left}</b> / {limit} ta hujjat\n\nLimit har kuni 00:00 da (Toshkent vaqti) yangilanadi.",
+    "💎 Tarif: <b>Bepul</b> — barcha shablon va imkoniyatlar ochiq.\n\nBugun qoldi: <b>{left}</b> / {limit} ta hujjat\n\nLimit har kuni 00:00 da (Toshkent vaqti) yangilanadi.",
 
   help:
     "<b>EduGen AI</b> — esse, taqdimot va mustaqil ish tayyorlaydi.\n\n/new — yangi hujjat\n/history — oxirgi hujjatlarim\n/convert — lotin ↔ kirill\n/settings — til, yozuv va shablon\n/plan — tarif va limit\n/cancel — joriy amalni bekor qilish\n\n⚠️ AI xato qilishi mumkin — natijani tekshirib chiqing.",

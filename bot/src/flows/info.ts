@@ -1,5 +1,5 @@
 import { Generation, User } from "@edugen/shared/db";
-import { dailyLimit, effectivePlan, tashkentDate, usedToday } from "@edugen/shared/limits";
+import { dailyLimit, tashkentDate, usedToday } from "@edugen/shared/limits";
 import type { BotContext } from "../context";
 
 export async function sendHelp(ctx: BotContext) {
@@ -7,13 +7,9 @@ export async function sendHelp(ctx: BotContext) {
 }
 
 export async function sendPlan(ctx: BotContext) {
-  const plan = effectivePlan(ctx.user);
-  const limit = dailyLimit(plan, "generation");
+  const limit = dailyLimit("generation");
   const used = await usedToday(ctx.user._id, "generation");
-  await ctx.reply(
-    ctx.t("plan.info", { plan: plan === "pro" ? "Pro" : "Free", left: Math.max(0, limit - used), limit }),
-    { parse_mode: "HTML" },
-  );
+  await ctx.reply(ctx.t("plan.info", { left: Math.max(0, limit - used), limit }), { parse_mode: "HTML" });
 }
 
 /** /stats — only for ADMIN_IDS. */

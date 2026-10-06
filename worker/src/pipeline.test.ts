@@ -3,7 +3,7 @@ import { Worker } from "bullmq";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AIError, AIRouter, type AIProvider, type JsonRequest } from "@edugen/shared/ai";
 import { connectDb, disconnectDb, ensureIndexes, Generation, mongoose, Usage, User, type UserDocument } from "@edugen/shared/db";
-import { consumeQuota, tashkentDate, usedToday } from "@edugen/shared/limits";
+import { consumeQuota, dailyLimit, tashkentDate, usedToday } from "@edugen/shared/limits";
 import { closeQueues, createRedis, QUEUES, queueOptions, type GenerateJob, type NotifyJob } from "@edugen/shared/queue";
 import { AlreadyGeneratingError, QuotaExceededError, startGeneration } from "@edugen/shared/services";
 import type { Telegram } from "telegraf";
@@ -92,8 +92,8 @@ describe("generation pipeline", () => {
 
   it("generates a document and sends it to the chat", async () => {
     const generation = await startGeneration(input());
-    // Free plan cannot use the Pro-only Dark template
-    expect(generation.template).toBe("modern");
+    // There is no paid plan, so the formerly Pro-only Dark template is kept
+    expect(generation.template).toBe("dark");
     await expect(startGeneration(input())).rejects.toBeInstanceOf(AlreadyGeneratingError);
 
     await waitFor(async () => telegram.sendMessage.mock.calls.length > 0);
@@ -124,7 +124,7 @@ describe("generation pipeline", () => {
   });
 
   it("refuses when the daily limit is used up", async () => {
-    await Usage.create({ userId: user._id, date: tashkentDate(), kind: "generation", count: 3 });
+    await Usage.create({ userId: user._id, date: tashkentDate(), kind: "generation", count: dailyLimit("generation") });
     await expect(startGeneration(input())).rejects.toBeInstanceOf(QuotaExceededError);
   });
 });

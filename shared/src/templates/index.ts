@@ -3,7 +3,6 @@ import type { SlideTheme, TemplateId } from "../schema";
 export interface Template {
   id: TemplateId;
   name: string;
-  proOnly: boolean;
   /** Colors for screens: web preview, slides (PPTX and slide PDF). */
   screen: {
     bg: string;
@@ -31,7 +30,6 @@ export const templates: Record<TemplateId, Template> = {
   modern: {
     id: "modern",
     name: "Modern",
-    proOnly: false,
     screen: {
       bg: "#FFFFFF",
       surface: "#EEF2FF",
@@ -49,7 +47,6 @@ export const templates: Record<TemplateId, Template> = {
   minimal: {
     id: "minimal",
     name: "Minimal",
-    proOnly: false,
     screen: {
       bg: "#FFFFFF",
       surface: "#F3F4F6",
@@ -67,7 +64,6 @@ export const templates: Record<TemplateId, Template> = {
   dark: {
     id: "dark",
     name: "Dark",
-    proOnly: true,
     screen: {
       bg: "#0F172A",
       surface: "#1E293B",

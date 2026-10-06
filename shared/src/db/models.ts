@@ -19,8 +19,6 @@ const { model, models, Schema } = mongoose;
 
 // ------------------------------------------------------------------ User
 
-export type PlanId = "free" | "pro";
-
 export interface UserSettings {
   uiLanguage: UiLanguage;
   contentLanguage: Language;
@@ -33,8 +31,6 @@ export interface IUser {
   firstName?: string;
   languageCode?: string;
   settings: UserSettings;
-  plan: PlanId;
-  planExpiresAt?: Date;
   isBlocked: boolean;
   /** Set once the user picked a language on the first /start. */
   onboardedAt?: Date;
@@ -53,8 +49,6 @@ const userSchema = new Schema<IUser>(
       contentLanguage: { type: String, enum: LANGUAGES, default: "uz-latn" },
       defaultTemplate: { type: String, enum: TEMPLATE_IDS, default: "modern" },
     },
-    plan: { type: String, enum: ["free", "pro"], default: "free" },
-    planExpiresAt: Date,
     isBlocked: { type: Boolean, default: false },
     onboardedAt: Date,
   },

@@ -1,7 +1,6 @@
 import { Queue, type ConnectionOptions } from "bullmq";
 import { Redis } from "ioredis";
 import { config } from "../config";
-import type { PlanId } from "../db/models";
 
 export const QUEUES = {
   generate: "generate",
@@ -43,13 +42,12 @@ function getQueues() {
 
 export const GENERATE_ATTEMPTS = 3;
 
-export async function enqueueGenerate(generationId: string, plan: PlanId): Promise<void> {
+export async function enqueueGenerate(generationId: string): Promise<void> {
   await getQueues().generate.add(
     "generate",
     { generationId },
     {
       jobId: generationId, // the same generation is never queued twice
-      priority: plan === "pro" ? 1 : 10, // lower number = served first
       attempts: GENERATE_ATTEMPTS,
       backoff: { type: "exponential", delay: 5_000 },
       removeOnComplete: 1_000,

@@ -188,7 +188,7 @@ RULES: no invented statistics, quotes, URLs or DOIs; return ONLY JSON matching t
 
 | Navbat | Vazifa |
 |--------|--------|
-| `generate` | to‘liq hujjat yaratish (3 urinish, Pro — ustuvor) |
+| `generate` | to‘liq hujjat yaratish (3 urinish) |
 | `regenerate-section` | bitta bo‘limni qayta yaratish |
 | `notify` | natijani Telegram’ga yuborish (flood limitlariga mos) |
 | `cleanup` | eski versiyalar, muddati o‘tgan havolalar, osilib qolgan vazifalar |
@@ -263,7 +263,6 @@ yuboriladi; prod’da webhook + `secretToken`.
 | `/p/[shareId]` | Ulashilgan hujjat (ommaviy, faqat o‘qish) |
 | `/convert` | Lotin ↔ kirill konvertor (ommaviy) |
 | `/settings` | Til, yozuv, standart shablon |
-| `/pricing` | Tariflar |
 
 ### Editor
 
@@ -342,32 +341,29 @@ POST /api/generations
 
 | Kolleksiya | Asosiy maydonlar |
 |------------|------------------|
-| `users` | telegramId, settings (uiLanguage, contentLanguage, defaultTemplate), plan, planExpiresAt |
+| `users` | telegramId, settings (uiLanguage, contentLanguage, defaultTemplate) |
 | `generations` | userId, type, topic, language, template, content, status, progress, revision, share, ai (provider, tokens) |
 | `versions` | generationId, reason, content, template, createdAt |
 | `usages` | userId, date (Toshkent vaqti), kind (`generation` / `ai_action`), count |
 | `logintokens` | tokenHash, expiresAt (TTL) |
-| `payments` | provider, amount, currency, status, externalId (unique) |
 
 ---
 
-## 💳 16. TARIFLAR VA TO‘LOVLAR
+## 🎁 16. TARIF
 
-| | Free | Pro |
-|---|------|-----|
-| Generatsiya (kuniga) | 3 | 50 |
-| AI tugmalari (kuniga) | 20 | 300 |
-| Shablonlar | Modern, Minimal | hammasi |
-| Mustaqil ish | ≤ 10 bet | ≤ 25 bet |
-| Versiyalar | oxirgi 10 ta | oxirgi 100 ta |
-| Navbatda ustuvorlik | — | ✅ |
-| Taqdimot rejimi, ulashish, lotin ↔ kirill | ✅ | ✅ |
-| Watermark | bor | yo‘q |
+Pullik tarif yo‘q — barcha imkoniyatlar hamma uchun bepul. Kunlik limitlar faqat AI xarajatini nazorat qiladi:
 
-> Raqamlar — misol, `shared/limits`da sozlanadi.
+| | Hamma uchun |
+|---|------|
+| Generatsiya (kuniga) | 50 |
+| AI tugmalari (kuniga) | 300 |
+| Shablonlar | hammasi |
+| Mustaqil ish | ≤ 25 bet |
+| Versiyalar | oxirgi 100 ta |
+| Taqdimot rejimi, ulashish, lotin ↔ kirill | ✅ |
+| Watermark | yo‘q |
 
-**To‘lovlar:** bot ichida — **Telegram Stars** (Telegram qoidasi bo‘yicha), web’da — **Click / Payme**.
-Tarif faqat provayder webhook’i tasdiqlagandan keyin yoqiladi.
+> Raqamlar `shared/limits`da sozlanadi.
 
 ---
 
@@ -490,8 +486,7 @@ Bot prod’da webhook bilan ishlaydi; worker’larni bir nechta instansga ko‘p
 - [ ] Taqdimot rejimi va ulashish
 - [ ] Zaxira AI, Minimal va Dark shablonlar
 
-**Bosqich 3 — Monetizatsiya**
-- [ ] Pro tarif: Telegram Stars, Click / Payme
+**Bosqich 3 — Boshqaruv**
 - [ ] Admin panel
 
 **Bosqich 4 — Kelajak**
