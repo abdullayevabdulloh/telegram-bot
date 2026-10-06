@@ -284,11 +284,14 @@ export function normalizeUzLatin(text: string): string {
 }
 
 /** Applies `fn` to every string of a JSON-like value (used for whole documents). */
+/** Machine values inside documents: identifiers, enums, English photo queries and photo data. */
+const UNTRANSLATED_KEYS = new Set(["id", "type", "layout", "theme", "imageQuery", "coverImageQuery", "image", "coverImage"]);
+
 export function mapStrings<T>(value: T, fn: (s: string) => string): T {
   if (typeof value === "string") return fn(value) as T;
   if (Array.isArray(value)) return value.map((v) => mapStrings(v, fn)) as T;
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, k === "id" || k === "type" ? v : mapStrings(v, fn)])) as T;
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, UNTRANSLATED_KEYS.has(k) ? v : mapStrings(v, fn)])) as T;
   }
   return value;
 }

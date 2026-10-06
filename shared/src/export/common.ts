@@ -1,3 +1,4 @@
+import type { LoadedImage } from "../images";
 import type { DocType, DocumentContent, ExportFormat, Language, TemplateId, TitleMeta } from "../schema";
 import { cyrillicToLatin } from "../translit";
 
@@ -6,6 +7,8 @@ export interface ExportInput {
   template: TemplateId;
   language: Language;
   meta?: TitleMeta;
+  /** Downloaded slide photos by URL; exportDocument loads them when they are not given. */
+  images?: Map<string, LoadedImage>;
 }
 
 export interface ExportedFile {

@@ -12,6 +12,7 @@ export default defineConfig({
       LOG_LEVEL: "silent",
       MONGODB_URI: "mongodb://localhost:27017/edugen_test",
       QUEUE_PREFIX: "edugen-test",
+      PEXELS_API_KEY: "", // tests never call Pexels
     },
   },
 });

@@ -20,12 +20,39 @@ export type TemplateId = z.infer<typeof TemplateIdSchema>;
 export type ExportFormat = z.infer<typeof ExportFormatSchema>;
 export type GenerationStatus = (typeof GENERATION_STATUSES)[number];
 
+/** How a presentation slide is laid out. */
+export const SLIDE_LAYOUTS = ["bullets", "image", "cards", "steps", "highlight"] as const;
+export const SlideLayoutSchema = z.enum(SLIDE_LAYOUTS);
+export type SlideLayout = z.infer<typeof SlideLayoutSchema>;
+
+/** Color palettes picked by the topic of a presentation (see templates/palettes). */
+export const SLIDE_THEMES = [
+  "technology", "science", "nature", "medicine", "history", "business",
+  "education", "art", "law", "sport", "geography", "society",
+] as const;
+export const SlideThemeSchema = z.enum(SLIDE_THEMES);
+export type SlideTheme = z.infer<typeof SlideThemeSchema>;
+
+/** A stock photo chosen for a slide; the bytes are downloaded at export time. */
+export const SlideImageSchema = z.object({
+  url: z.string().url(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  credit: z.string().optional(),
+  color: z.string().optional(),
+});
+export type SlideImage = z.infer<typeof SlideImageSchema>;
+
 export const SectionSchema = z.object({
   id: z.string().min(1),
   heading: z.string().min(1),
   paragraphs: z.array(z.string()).optional(),
   bullets: z.array(z.string()).optional(),
   notes: z.string().optional(),
+  layout: SlideLayoutSchema.optional(),
+  /** English stock-photo search query written by the AI. */
+  imageQuery: z.string().optional(),
+  image: SlideImageSchema.optional(),
 });
 
 export const DocumentContentSchema = z.object({
@@ -35,6 +62,9 @@ export const DocumentContentSchema = z.object({
   plan: z.array(z.string()).optional(),
   sections: z.array(SectionSchema).min(1),
   references: z.array(z.string()).optional(),
+  theme: SlideThemeSchema.optional(),
+  coverImageQuery: z.string().optional(),
+  coverImage: SlideImageSchema.optional(),
 });
 
 export type Section = z.infer<typeof SectionSchema>;

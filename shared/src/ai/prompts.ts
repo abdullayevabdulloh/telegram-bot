@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { docStrings } from "../i18n";
-import type { Language } from "../schema";
+import { SLIDE_LAYOUTS, SLIDE_THEMES, type Language } from "../schema";
 
 /** The model writes in these languages; uz-cyrl is produced from uz-latn by transliteration. */
 export type WritingLanguage = Exclude<Language, "uz-cyrl">;
@@ -14,7 +14,17 @@ export const EssayOutput = z.object({
 export const PresentationOutput = z.object({
   title: z.string(),
   subtitle: z.string(),
-  slides: z.array(z.object({ title: z.string(), bullets: z.array(z.string()), notes: z.string() })),
+  theme: z.enum(SLIDE_THEMES),
+  cover_image_query: z.string(),
+  slides: z.array(
+    z.object({
+      title: z.string(),
+      layout: z.enum(SLIDE_LAYOUTS),
+      bullets: z.array(z.string()),
+      notes: z.string(),
+      image_query: z.string(),
+    }),
+  ),
 });
 
 export const WorkOutlineOutput = z.object({
@@ -83,9 +93,21 @@ export function presentationPrompt(topic: string, slides: number, language: Writ
       "TASK: content of a slide presentation",
       `TOPIC: "${topic}"`,
       `SLIDES: exactly ${contentSlides} content slides. The title slide and the closing "thank you" slide are added automatically — do not include them.`,
-      "Each slide: a short title (at most 7 words), 3–5 bullet points (each at most 12 words, no trailing period) and speaker notes of 2–4 sentences that explain the bullets.",
+      "Each slide: a short title (at most 7 words), bullet points (no trailing period) and speaker notes of 2–4 sentences that explain the bullets.",
       `The first slide introduces the topic; the last slide is titled "${s.conclusion}" and sums up the key takeaways.`,
       "Also give a title and a one-line subtitle for the whole presentation.",
+      "",
+      "DESIGN — make the deck visually varied, like a modern designer would:",
+      "- layout of each slide, chosen by its content:",
+      '  "bullets": 3–5 points, each at most 12 words — for general explanations.',
+      '  "image": 2–4 points, each at most 10 words, shown next to a photo — for slides about something that can be photographed (places, people at work, objects, nature).',
+      '  "cards": 3–4 parallel items (types, advantages, factors), each written as "Short label: explanation" with the label at most 3 words and the explanation at most 10 words.',
+      '  "steps": 3–5 stages of a process or a chronology, in order, each written as "Short label: explanation" with the explanation at most 8 words.',
+      '  "highlight": one key idea as a single strong sentence of at most 20 words in the first bullet, plus at most 2 short supporting points — use it at most twice.',
+      "- Never use the same layout on two consecutive slides. Use at least 3 different layouts in the deck; about a third of the slides should be \"image\".",
+      "- image_query: for \"image\" slides, 2–5 English words describing a realistic stock photo for the slide (concrete objects or scenes, no text, no abstract ideas); an empty string for other layouts.",
+      "- cover_image_query: 2–5 English words for a striking stock photo that represents the whole topic.",
+      `- theme: the color palette that fits the subject best (${SLIDE_THEMES.join(", ")}).`,
     ].join("\n"),
   };
 }

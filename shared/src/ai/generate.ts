@@ -1,5 +1,5 @@
 import { docStrings } from "../i18n";
-import { WORDS_PER_PAGE, withSectionIds, type DocType, type DocumentContent, type Language } from "../schema";
+import { WORDS_PER_PAGE, withSectionIds, type DocType, type DocumentContent, type Language, type SlideLayout } from "../schema";
 import { latinToCyrillic, mapStrings, normalizeUzLatin } from "../translit";
 import {
   ChapterOutput,
@@ -86,6 +86,45 @@ async function runPool<T>(count: number, concurrency: number, task: (index: numb
   return results;
 }
 
+interface LayoutSlot {
+  layout: SlideLayout;
+  items: number;
+  hasQuery: boolean;
+}
+
+/** Item counts each layout can draw well; anything else falls back to a plain list. */
+function fits(layout: SlideLayout, items: number, hasQuery: boolean): boolean {
+  switch (layout) {
+    case "image":
+      return hasQuery && items >= 1 && items <= 5;
+    case "cards":
+      return items >= 2 && items <= 6;
+    case "steps":
+      return items >= 3 && items <= 5;
+    case "highlight":
+      return items >= 1 && items <= 3;
+    default:
+      return true;
+  }
+}
+
+/**
+ * Small models often repeat one layout or pick one that cannot hold the content.
+ * Fix the layouts that cannot be drawn and break up runs of the same layout.
+ */
+export function varyLayouts(slots: LayoutSlot[]): SlideLayout[] {
+  const result: SlideLayout[] = [];
+  slots.forEach((slot, i) => {
+    let layout = fits(slot.layout, slot.items, slot.hasQuery) ? slot.layout : "bullets";
+    if (layout === result[i - 1]) {
+      const alternatives: SlideLayout[] = ["image", "cards", "bullets"]; // "steps" only fits real sequences
+      layout = alternatives.find((l) => l !== result[i - 1] && fits(l, slot.items, slot.hasQuery)) ?? layout;
+    }
+    result.push(layout);
+  });
+  return result;
+}
+
 export async function generateDocument(
   router: AIRouter,
   input: GenerateInput,
@@ -126,20 +165,24 @@ export async function generateDocument(
         schemaName: "presentation",
         system,
         user: prompt.user,
-        maxTokens: tokenBudget(prompt.contentSlides * 120),
+        maxTokens: tokenBudget(prompt.contentSlides * 150),
       }),
     );
+    const slides = out.slides.map((s) => ({
+      heading: cleanHeading(s.title),
+      bullets: cleanList(s.bullets).map((b) => b.replace(/^[-•–]\s*/, "").replace(/\.$/, "")),
+      notes: clean(s.notes) || undefined,
+      layout: s.layout,
+      imageQuery: clean(s.image_query) || undefined,
+    }));
+    const layouts = varyLayouts(slides.map((s) => ({ layout: s.layout, items: s.bullets.length, hasQuery: Boolean(s.imageQuery) })));
     content = {
       type: "presentation",
       title: clean(out.title),
       subtitle: clean(out.subtitle) || undefined,
-      sections: withSectionIds(
-        out.slides.map((s) => ({
-          heading: cleanHeading(s.title),
-          bullets: cleanList(s.bullets).map((b) => b.replace(/^[-•–]\s*/, "").replace(/\.$/, "")),
-          notes: clean(s.notes) || undefined,
-        })),
-      ),
+      theme: out.theme,
+      coverImageQuery: clean(out.cover_image_query) || undefined,
+      sections: withSectionIds(slides.map((s, i) => ({ ...s, layout: layouts[i] }))),
     };
   } else {
     content = await generateWork(router, input, writing, system, meter, onProgress);

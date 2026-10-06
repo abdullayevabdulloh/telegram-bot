@@ -58,6 +58,7 @@ const DOC_UZ_LATN = {
   performedBy: "Bajardi",
   checkedBy: "Tekshirdi",
   group: "Guruh",
+  photo: "Foto",
 };
 
 export type DocStrings = typeof DOC_UZ_LATN;
@@ -78,6 +79,7 @@ const DOC_STRINGS: Record<Exclude<Language, "uz-cyrl">, DocStrings> = {
     performedBy: "Выполнил(а)",
     checkedBy: "Проверил(а)",
     group: "Группа",
+    photo: "Фото",
   },
   en: {
     plan: "Outline",
@@ -93,6 +95,7 @@ const DOC_STRINGS: Record<Exclude<Language, "uz-cyrl">, DocStrings> = {
     performedBy: "Prepared by",
     checkedBy: "Checked by",
     group: "Group",
+    photo: "Photo",
   },
 };
 

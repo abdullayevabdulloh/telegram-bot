@@ -1,26 +1,70 @@
 import PptxGenJS from "pptxgenjs";
-import { docStrings } from "../i18n";
 import { getTemplate } from "../templates";
 import { hex, type ExportInput } from "./common";
+import { buildSlides, type Element } from "./slides";
 
-// LAYOUT_WIDE = 13.33 × 7.5 in (16:9)
-const WIDTH = 13.33;
+const transparency = (opacity = 1) => Math.round((1 - opacity) * 100);
 
-/** Smaller text for fuller slides — prompts already limit bullets to 3–5 × 12 words. */
-function bulletFontSize(bullets: string[]): number {
-  const chars = bullets.reduce((sum, b) => sum + b.length, 0);
-  if (chars <= 200) return 24;
-  if (chars <= 320) return 22;
-  if (chars <= 450) return 20;
-  if (chars <= 600) return 18;
-  return 16;
+function draw(pptx: PptxGenJS, slide: PptxGenJS.Slide, el: Element, fonts: { heading: string; body: string }) {
+  switch (el.kind) {
+    case "rect":
+      slide.addShape(el.radius ? pptx.ShapeType.roundRect : pptx.ShapeType.rect, {
+        x: el.x, y: el.y, w: el.w, h: el.h,
+        fill: { color: hex(el.fill), transparency: transparency(el.opacity) },
+        line: { type: "none" },
+        // Inches, despite the typings that say 0–1 (see genXmlSlideObjects); at most half the shorter side
+        ...(el.radius ? { rectRadius: Math.min(el.radius, Math.min(el.w, el.h) / 2) } : {}),
+      });
+      return;
+    case "ellipse":
+      slide.addShape(pptx.ShapeType.ellipse, {
+        x: el.x, y: el.y, w: el.w, h: el.h,
+        fill: { color: hex(el.fill), transparency: transparency(el.opacity) },
+        line: { type: "none" },
+      });
+      return;
+    case "image": {
+      // w/h carry the photo's aspect ratio; sizing crops it to the box like CSS object-fit: cover
+      const ratio = el.image.height / el.image.width;
+      slide.addImage({
+        data: `${el.image.mime};base64,${el.image.data.toString("base64")}`,
+        x: el.x, y: el.y, w: el.w, h: el.w * ratio,
+        sizing: { type: "cover", w: el.w, h: el.h },
+      });
+      return;
+    }
+    case "text": {
+      // The first paragraph uses the box defaults; following ones carry their own size, color and spacing
+      const paragraphs = [{ runs: el.runs }, ...(el.then ?? [])].map((p, i) =>
+        p.runs.map((run, j) => ({
+          text: run.text,
+          options: {
+            bold: run.bold ?? false,
+            ...("size" in p ? { fontSize: p.size, color: hex(p.color), fontFace: fonts.body } : {}),
+            ...("gap" in p && j === 0 ? { paraSpaceBefore: p.gap * 72 } : {}),
+            ...(j === p.runs.length - 1 && i < (el.then?.length ?? 0) ? { breakLine: true } : {}),
+          },
+        })),
+      );
+      slide.addText(
+        paragraphs.flat(),
+        {
+          x: el.x, y: el.y, w: el.w, h: el.h,
+          fontFace: fonts[el.font], fontSize: el.size, color: hex(el.color),
+          align: el.align ?? "left", valign: el.valign ?? "top",
+          // Office fonts have shorter lines than the Noto Sans the layout was measured with
+          margin: 0, lineSpacingMultiple: 1.2, charSpacing: el.spacing,
+        },
+      );
+      return;
+    }
+  }
 }
 
-export async function renderPptx({ content, template, language, meta }: ExportInput): Promise<Buffer> {
+export async function renderPptx(input: ExportInput): Promise<Buffer> {
+  const { content, template, meta, images } = input;
   if (content.type !== "presentation") throw new Error("PPTX is only available for presentations");
-  const t = getTemplate(template);
-  const c = t.screen;
-  const s = docStrings(language);
+  const fonts = getTemplate(template).office;
 
   const pptx = new PptxGenJS();
   pptx.layout = "LAYOUT_WIDE";
@@ -28,63 +72,12 @@ export async function renderPptx({ content, template, language, meta }: ExportIn
   pptx.author = meta?.student ?? "EduGen AI";
   pptx.company = "EduGen AI";
 
-  pptx.defineSlideMaster({
-    title: "COVER",
-    background: { color: hex(c.coverBg) },
-    objects: [{ rect: { x: 0, y: 6.95, w: WIDTH, h: 0.55, fill: { color: hex(c.accent) } } }],
-  });
-  pptx.defineSlideMaster({
-    title: "CONTENT",
-    background: { color: hex(c.bg) },
-    objects: [{ rect: { x: 0, y: 0, w: 0.17, h: 7.5, fill: { color: hex(c.primary) } } }],
-    slideNumber: { x: 12.3, y: 6.95, w: 0.7, h: 0.35, color: hex(c.muted), fontSize: 12, fontFace: t.office.body, align: "right" },
-  });
-  pptx.defineSlideMaster({ title: "END", background: { color: hex(c.coverBg) } });
-
-  // Cover
-  const cover = pptx.addSlide({ masterName: "COVER" });
-  cover.addText(content.title, {
-    x: 0.8, y: 1.9, w: 11.7, h: 2.0,
-    fontFace: t.office.heading, fontSize: content.title.length > 60 ? 34 : 42, bold: true,
-    color: hex(c.coverText), valign: "bottom", fit: "shrink",
-  });
-  if (content.subtitle) {
-    cover.addText(content.subtitle, {
-      x: 0.8, y: 4.05, w: 11.7, h: 0.9, fontFace: t.office.body, fontSize: 20, color: hex(c.coverText), valign: "top",
-    });
+  for (const spec of buildSlides(input, images ?? new Map())) {
+    const slide = pptx.addSlide();
+    slide.background = { color: hex(spec.background) };
+    for (const el of spec.elements) draw(pptx, slide, el, fonts);
+    if (spec.notes) slide.addNotes(spec.notes);
   }
-  const byline = [meta?.student, meta?.university].filter(Boolean).join(" · ");
-  if (byline) {
-    cover.addText(byline, { x: 0.8, y: 5.9, w: 11.7, h: 0.5, fontFace: t.office.body, fontSize: 14, color: hex(c.coverText) });
-  }
-
-  // Content
-  for (const section of content.sections) {
-    const slide = pptx.addSlide({ masterName: "CONTENT" });
-    slide.addText(section.heading, {
-      x: 0.6, y: 0.35, w: 12.1, h: 1.0,
-      fontFace: t.office.heading, fontSize: section.heading.length > 45 ? 26 : 32, bold: true,
-      color: hex(c.primary), valign: "middle", fit: "shrink",
-    });
-    slide.addShape(pptx.ShapeType.rect, { x: 0.6, y: 1.38, w: 0.9, h: 0.06, fill: { color: hex(c.accent) }, line: { type: "none" } });
-
-    const bullets = section.bullets?.length ? section.bullets : (section.paragraphs ?? []);
-    slide.addText(
-      bullets.map((text) => ({ text, options: { bullet: { indent: 20 }, breakLine: true } })),
-      {
-        x: 0.8, y: 1.65, w: 11.8, h: 5.1,
-        fontFace: t.office.body, fontSize: bulletFontSize(bullets), color: hex(c.text),
-        valign: "top", paraSpaceAfter: 12, fit: "shrink",
-      },
-    );
-    if (section.notes) slide.addNotes(section.notes);
-  }
-
-  // Closing
-  pptx.addSlide({ masterName: "END" }).addText(s.thanks, {
-    x: 0.8, y: 2.9, w: 11.7, h: 1.5,
-    fontFace: t.office.heading, fontSize: 40, bold: true, color: hex(c.coverText), align: "center", valign: "middle",
-  });
 
   return (await pptx.write({ outputType: "nodebuffer" })) as Buffer;
 }

@@ -403,6 +403,9 @@ OPENAI_TIMEOUT_MS=120000
 ANTHROPIC_API_KEY=
 ANTHROPIC_MODEL=claude-opus-5-5
 
+# Taqdimot fotolari (ixtiyoriy) — https://www.pexels.com/api/
+PEXELS_API_KEY=
+
 # Worker
 WORKER_CONCURRENCY=5
 

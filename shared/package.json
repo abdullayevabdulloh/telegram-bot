@@ -15,6 +15,7 @@
     "./limits": "./src/limits/index.ts",
     "./queue": "./src/queue/index.ts",
     "./export": "./src/export/index.ts",
+    "./images": "./src/images/index.ts",
     "./services": "./src/services/index.ts",
     "./telegram": "./src/telegram/index.ts"
   },

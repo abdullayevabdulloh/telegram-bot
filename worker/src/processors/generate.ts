@@ -1,6 +1,7 @@
 import { UnrecoverableError, type Job } from "bullmq";
 import { AIError, generateDocument, type AIRouter, type ProgressUpdate } from "@edugen/shared/ai";
 import { Generation, User } from "@edugen/shared/db";
+import { attachImages } from "@edugen/shared/images";
 import { logger } from "@edugen/shared/logger";
 import { enqueueNotify, type GenerateJob } from "@edugen/shared/queue";
 import { failGeneration } from "@edugen/shared/services";
@@ -38,9 +39,10 @@ export function createGenerateProcessor(deps: { router: AIRouter; telegram: Tele
         { type: generation.type, topic: generation.topic, language: generation.language, length: generation.length },
         onProgress,
       );
+      const content = await attachImages(result.content);
       const saved = await Generation.updateOne(
         { _id: generation._id, status: "pending" },
-        { $set: { status: "done", progress: 100, content: result.content, ai: result.ai }, $unset: { stage: 1, error: 1 } },
+        { $set: { status: "done", progress: 100, content, ai: result.ai }, $unset: { stage: 1, error: 1 } },
       );
       if (saved.modifiedCount) await enqueueNotify({ kind: "done", generationId });
       logger.info({ generationId, type: generation.type, ...result.ai }, "Generation done");

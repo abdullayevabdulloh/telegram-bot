@@ -29,6 +29,9 @@ const EnvSchema = z.object({
   ANTHROPIC_MODEL: z.string().default("claude-opus-5-5"),
   ANTHROPIC_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
 
+  // Stock photos for presentations (pexels.com/api). Empty = slides without photos.
+  PEXELS_API_KEY: optional,
+
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(5),
 
   BOT_TOKEN: optional,

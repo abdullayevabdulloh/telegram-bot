@@ -1,16 +1,9 @@
-import { fileURLToPath } from "node:url";
 import PDFDocument from "pdfkit";
 import { docStrings } from "../i18n";
 import { getTemplate, type Template } from "../templates";
 import { yearOf, type ExportInput } from "./common";
+import { buildSlides, FONTS, lineGap, SLIDE_H, SLIDE_W, type Element, type Run } from "./slides";
 
-// Standard PDF fonts cannot show Cyrillic or ‘ ’ — Noto Sans is embedded instead.
-const font = (name: string) => fileURLToPath(new URL(`../../assets/fonts/${name}`, import.meta.url));
-const FONTS = {
-  Regular: font("NotoSans-Regular.ttf"),
-  Bold: font("NotoSans-Bold.ttf"),
-  Italic: font("NotoSans-Italic.ttf"),
-};
 
 type Doc = PDFKit.PDFDocument;
 
@@ -141,64 +134,56 @@ function addPageNumbers(doc: Doc, color: string, skipFirst: number) {
 
 // ------------------------------------------------------------------ 16:9 slides
 
-const W = 960;
-const H = 540;
+const PT = 72; // slide layouts are in inches
 
-/** Largest font size from `sizes` at which `measure` fits into `maxHeight`. */
-function fitSize(doc: Doc, sizes: number[], maxHeight: number, measure: () => number): number {
-  for (const size of sizes) {
-    doc.fontSize(size);
-    if (measure() <= maxHeight) return size;
+function drawSlideElement(doc: Doc, el: Element) {
+  const [x, y, w, h] = [el.x * PT, el.y * PT, el.w * PT, el.h * PT];
+  switch (el.kind) {
+    case "rect":
+      doc.save().fillOpacity(el.opacity ?? 1);
+      (el.radius ? doc.roundedRect(x, y, w, h, el.radius * PT) : doc.rect(x, y, w, h)).fill(el.fill);
+      doc.restore();
+      return;
+    case "ellipse":
+      doc.save().fillOpacity(el.opacity ?? 1).ellipse(x + w / 2, y + h / 2, w / 2, h / 2).fill(el.fill).restore();
+      return;
+    case "image":
+      doc.save().rect(x, y, w, h).clip();
+      doc.image(el.image.data, x, y, { cover: [w, h], align: "center", valign: "center" });
+      doc.restore();
+      return;
+    case "text": {
+      const options = { width: w, align: el.align ?? "left", lineGap: lineGap(el.size), characterSpacing: el.spacing ?? 0 };
+      const textOf = (run: Run) => run.text;
+      doc.font(el.runs.some((r) => r.bold) ? "Bold" : "Regular").fontSize(el.size);
+      const height = doc.heightOfString(el.runs.map(textOf).join(""), options);
+      const top = el.valign === "middle" ? y + (h - height) / 2 : el.valign === "bottom" ? y + h - height : y;
+      doc.fillColor(el.color);
+      const paragraph = (runs: Run[], size: number, at: number) => {
+        const opts = { ...options, lineGap: lineGap(size) };
+        runs.forEach((run, i) => {
+          doc.font(run.bold ? "Bold" : "Regular").fontSize(size);
+          const last = i === runs.length - 1;
+          if (i === 0) doc.text(run.text, x, at, { ...opts, continued: !last });
+          else doc.text(run.text, { ...opts, continued: !last });
+        });
+      };
+      paragraph(el.runs, el.size, top);
+      for (const p of el.then ?? []) {
+        doc.fillColor(p.color);
+        paragraph(p.runs, p.size, doc.y + p.gap * PT);
+      }
+      return;
+    }
   }
-  return sizes.at(-1)!;
 }
 
-function slidesPdf({ content, template, language, meta }: ExportInput): Promise<Buffer> {
-  const t = getTemplate(template).screen;
-  const s = docStrings(language);
-  const doc = createDoc({ size: [W, H], margin: 0, autoFirstPage: false }, content.title);
-  const page = (bg: string) => {
+function slidesPdf(input: ExportInput): Promise<Buffer> {
+  const doc = createDoc({ size: [SLIDE_W * PT, SLIDE_H * PT], margin: 0, autoFirstPage: false }, input.content.title);
+  for (const spec of buildSlides(input, input.images ?? new Map())) {
     doc.addPage();
-    doc.rect(0, 0, W, H).fill(bg);
-  };
-
-  // Cover
-  page(t.coverBg);
-  doc.rect(0, H - 40, W, 40).fill(t.accent);
-  doc.font("Bold").fillColor(t.coverText);
-  const titleSize = fitSize(doc, [44, 38, 32, 28], 200, () => doc.heightOfString(content.title, { width: 820 }));
-  doc.fontSize(titleSize).text(content.title, 70, 170, { width: 820 });
-  if (content.subtitle) doc.font("Regular").fontSize(20).fillColor(t.coverText).text(content.subtitle, 70, doc.y + 14, { width: 820 });
-  const byline = [meta?.student, meta?.university].filter(Boolean).join(" · ");
-  if (byline) doc.font("Regular").fontSize(14).text(byline, 70, H - 90, { width: 820 });
-
-  // Content
-  content.sections.forEach((slide, index) => {
-    page(t.bg);
-    doc.rect(0, 0, 12, H).fill(t.primary);
-    doc.font("Bold").fillColor(t.primary);
-    const headingSize = fitSize(doc, [30, 26, 22], 80, () => doc.heightOfString(slide.heading, { width: 840 }));
-    doc.fontSize(headingSize).text(slide.heading, 60, 36, { width: 840 });
-    doc.rect(60, doc.y + 8, 70, 4).fill(t.accent);
-
-    const bullets = slide.bullets?.length ? slide.bullets : (slide.paragraphs ?? []);
-    const top = doc.y + 32;
-    const measure = () =>
-      bullets.reduce((sum, b) => sum + doc.heightOfString(b, { width: 800, lineGap: 4 }) + 12, 0);
-    doc.font("Regular");
-    const size = fitSize(doc, [24, 22, 20, 18, 16, 14], H - top - 50, measure);
-    let y = top;
-    for (const bullet of bullets) {
-      doc.circle(72, y + size * 0.62, 4).fill(t.accent);
-      doc.font("Regular").fontSize(size).fillColor(t.text).text(bullet, 92, y, { width: 800, lineGap: 4 });
-      y = doc.y + 12;
-    }
-    doc.font("Regular").fontSize(12).fillColor(t.muted).text(String(index + 2), W - 70, H - 34, { width: 40, align: "right" });
-  });
-
-  // Closing slide
-  page(t.coverBg);
-  doc.font("Bold").fontSize(40).fillColor(t.coverText).text(s.thanks, 60, H / 2 - 30, { width: W - 120, align: "center" });
-
+    doc.rect(0, 0, SLIDE_W * PT, SLIDE_H * PT).fill(spec.background);
+    for (const el of spec.elements) drawSlideElement(doc, el);
+  }
   return toBuffer(doc);
 }

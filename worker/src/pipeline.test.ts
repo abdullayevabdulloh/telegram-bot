@@ -13,7 +13,9 @@ import { createNotifyProcessor } from "./processors/notify";
 const deck = {
   title: "AI ta'limda",
   subtitle: "Sharh",
-  slides: [{ title: "Kirish", bullets: ["Bir", "Ikki", "Uch"], notes: "Izoh" }],
+  theme: "technology",
+  cover_image_query: "",
+  slides: [{ title: "Kirish", layout: "bullets", bullets: ["Bir", "Ikki", "Uch"], notes: "Izoh", image_query: "" }],
 };
 
 let failAI = false;

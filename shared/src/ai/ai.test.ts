@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { generateDocument } from "./generate";
+import type { SlideLayout } from "../schema";
+import { generateDocument, varyLayouts } from "./generate";
 import Anthropic from "@anthropic-ai/sdk";
 import { RateLimitError } from "openai";
 import { toAnthropicAIError } from "./providers/anthropic";
@@ -119,7 +120,12 @@ function fakeWriter(): AIProvider {
         presentation: {
           title: "AI ta'limda",
           subtitle: "Qisqa sharh",
-          slides: [{ title: "Kirish", bullets: ["- Birinchi punkt.", "Ikkinchi"], notes: "Izoh." }],
+          theme: "education",
+          cover_image_query: "students classroom",
+          slides: [
+            { title: "Kirish", layout: "bullets", bullets: ["- Birinchi punkt.", "Ikkinchi"], notes: "Izoh.", image_query: "" },
+            { title: "Sinf", layout: "bullets", bullets: ["Bir", "Ikki", "Uch"], notes: "", image_query: "smart classroom" },
+          ],
         },
         work_outline: {
           title: "Raqamli iqtisodiyot",
@@ -153,7 +159,10 @@ describe("generateDocument", () => {
   it("builds slides and cleans bullets", async () => {
     const { content } = await generateDocument(router(), { type: "presentation", topic: "AI", language: "uz-latn", length: 10 });
     expect(content.subtitle).toBe("Qisqa sharh");
-    expect(content.sections[0]).toMatchObject({ heading: "Kirish", bullets: ["Birinchi punkt", "Ikkinchi"], notes: "Izoh." });
+    expect(content.sections[0]).toMatchObject({ heading: "Kirish", bullets: ["Birinchi punkt", "Ikkinchi"], notes: "Izoh.", layout: "bullets" });
+    expect(content).toMatchObject({ theme: "education", coverImageQuery: "students classroom" });
+    // Two "bullets" in a row: the second one becomes a photo slide because it has a query
+    expect(content.sections[1]).toMatchObject({ layout: "image", imageQuery: "smart classroom" });
   });
 
   it("writes a work step by step and reports progress", async () => {
@@ -220,5 +229,24 @@ describe("toAnthropicAIError", () => {
     expect(toAnthropicAIError(apiError(404), "a").kind).toBe("unavailable");
     expect(toAnthropicAIError(apiError(400), "a").kind).toBe("bad_request");
     expect(toAnthropicAIError(new Anthropic.APIConnectionTimeoutError(), "a").kind).toBe("transient");
+  });
+});
+
+describe("varyLayouts", () => {
+  const slot = (layout: SlideLayout, items = 4, hasQuery = false) => ({ layout, items, hasQuery });
+
+  it("keeps a varied deck as it is", () => {
+    expect(varyLayouts([slot("bullets"), slot("cards"), slot("steps"), slot("highlight", 2)])).toEqual(["bullets", "cards", "steps", "highlight"]);
+  });
+
+  it("replaces layouts that cannot hold the content", () => {
+    expect(varyLayouts([slot("steps", 8), slot("image", 3, false), slot("highlight", 5)])).toEqual(["bullets", "cards", "bullets"]);
+  });
+
+  it("breaks up runs of one layout", () => {
+    // A photo slide when there is a query, cards when the items fit, otherwise the repeat stays
+    expect(varyLayouts([slot("bullets"), slot("bullets", 4, true), slot("bullets"), slot("bullets", 3), slot("bullets", 7)])).toEqual([
+      "bullets", "image", "bullets", "cards", "bullets",
+    ]);
   });
 });
