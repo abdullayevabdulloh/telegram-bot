@@ -2,7 +2,9 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { imageSize } from "../images";
 import { FORMATS_BY_TYPE, TEMPLATE_IDS, type DocumentContent } from "../schema";
+import { slideColors } from "../templates";
 import { latinToCyrillic, mapStrings } from "../translit";
+import { renderBackdrop } from "./backdrop";
 import { exportDocument, fileName } from "./index";
 
 const paragraph =
@@ -85,9 +87,21 @@ describe("exportDocument", () => {
       coverImage: undefined,
       sections: presentation.sections.map(({ image: _image, layout: _layout, ...s }) => s),
     };
-    for (const format of ["pptx", "pdf"] as const) {
-      const file = await exportDocument(format, { content: plain, template: "modern", language: "uz-latn", images: new Map() });
-      expect(file.buffer.length).toBeGreaterThan(2_000);
+    for (const template of TEMPLATE_IDS) {
+      for (const format of ["pptx", "pdf"] as const) {
+        const file = await exportDocument(format, { content: plain, template, language: "uz-latn", images: new Map() });
+        expect(file.buffer.length).toBeGreaterThan(2_000);
+      }
+    }
+  });
+
+  it("paints gradient backdrops as small PNGs", () => {
+    for (const template of ["aurora", "pastel"] as const) {
+      const { backdrop } = slideColors(template, "nature");
+      for (const image of [renderBackdrop(backdrop!.soft), renderBackdrop(backdrop!.vivid)]) {
+        expect(imageSize(image.data)).toEqual({ width: image.width, height: image.height, mime: "image/png" });
+        expect(image.data.length).toBeLessThan(100_000);
+      }
     }
   });
 

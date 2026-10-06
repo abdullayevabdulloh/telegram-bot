@@ -1,9 +1,13 @@
 import PptxGenJS from "pptxgenjs";
+import type { LoadedImage } from "../images";
 import { getTemplate } from "../templates";
 import { hex, type ExportInput } from "./common";
-import { buildSlides, type Element } from "./slides";
+import { buildSlides, type Element, type Stroke } from "./slides";
 
 const transparency = (opacity = 1) => Math.round((1 - opacity) * 100);
+
+const line = (stroke?: Stroke): PptxGenJS.ShapeLineProps =>
+  stroke ? { color: hex(stroke.color), transparency: transparency(stroke.opacity), width: stroke.width } : { type: "none" };
 
 function draw(pptx: PptxGenJS, slide: PptxGenJS.Slide, el: Element, fonts: { heading: string; body: string }) {
   switch (el.kind) {
@@ -11,7 +15,7 @@ function draw(pptx: PptxGenJS, slide: PptxGenJS.Slide, el: Element, fonts: { hea
       slide.addShape(el.radius ? pptx.ShapeType.roundRect : pptx.ShapeType.rect, {
         x: el.x, y: el.y, w: el.w, h: el.h,
         fill: { color: hex(el.fill), transparency: transparency(el.opacity) },
-        line: { type: "none" },
+        line: line(el.stroke),
         // Inches, despite the typings that say 0–1 (see genXmlSlideObjects); at most half the shorter side
         ...(el.radius ? { rectRadius: Math.min(el.radius, Math.min(el.w, el.h) / 2) } : {}),
       });
@@ -20,7 +24,7 @@ function draw(pptx: PptxGenJS, slide: PptxGenJS.Slide, el: Element, fonts: { hea
       slide.addShape(pptx.ShapeType.ellipse, {
         x: el.x, y: el.y, w: el.w, h: el.h,
         fill: { color: hex(el.fill), transparency: transparency(el.opacity) },
-        line: { type: "none" },
+        line: line(el.stroke),
       });
       return;
     case "image": {
@@ -72,9 +76,21 @@ export async function renderPptx(input: ExportInput): Promise<Buffer> {
   pptx.author = meta?.student ?? "EduGen AI";
   pptx.company = "EduGen AI";
 
+  // Gradient backdrops live in slide masters: stored once per deck, and not selectable while editing a slide
+  const masters = new Map<LoadedImage, string>();
+  const masterFor = (backdrop: LoadedImage) => {
+    let title = masters.get(backdrop);
+    if (!title) {
+      title = `Backdrop-${masters.size + 1}`;
+      pptx.defineSlideMaster({ title, background: { data: `${backdrop.mime};base64,${backdrop.data.toString("base64")}` } });
+      masters.set(backdrop, title);
+    }
+    return title;
+  };
+
   for (const spec of buildSlides(input, images ?? new Map())) {
-    const slide = pptx.addSlide();
-    slide.background = { color: hex(spec.background) };
+    const slide = spec.backdrop ? pptx.addSlide({ masterName: masterFor(spec.backdrop) }) : pptx.addSlide();
+    if (!spec.backdrop) slide.background = { color: hex(spec.background) };
     for (const el of spec.elements) draw(pptx, slide, el, fonts);
     if (spec.notes) slide.addNotes(spec.notes);
   }

@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import { docStrings } from "../i18n";
+import type { LoadedImage } from "../images";
 import { getTemplate, type Template } from "../templates";
 import { yearOf, type ExportInput } from "./common";
 import { buildSlides, FONTS, lineGap, SLIDE_H, SLIDE_W, type Element, type Run } from "./slides";
@@ -140,12 +141,14 @@ function drawSlideElement(doc: Doc, el: Element) {
   const [x, y, w, h] = [el.x * PT, el.y * PT, el.w * PT, el.h * PT];
   switch (el.kind) {
     case "rect":
-      doc.save().fillOpacity(el.opacity ?? 1);
-      (el.radius ? doc.roundedRect(x, y, w, h, el.radius * PT) : doc.rect(x, y, w, h)).fill(el.fill);
-      doc.restore();
-      return;
     case "ellipse":
-      doc.save().fillOpacity(el.opacity ?? 1).ellipse(x + w / 2, y + h / 2, w / 2, h / 2).fill(el.fill).restore();
+      doc.save().fillOpacity(el.opacity ?? 1);
+      if (el.kind === "ellipse") doc.ellipse(x + w / 2, y + h / 2, w / 2, h / 2);
+      else if (el.radius) doc.roundedRect(x, y, w, h, el.radius * PT);
+      else doc.rect(x, y, w, h);
+      if (el.stroke) doc.lineWidth(el.stroke.width).strokeOpacity(el.stroke.opacity ?? 1).fillAndStroke(el.fill, el.stroke.color);
+      else doc.fill(el.fill);
+      doc.restore();
       return;
     case "image":
       doc.save().rect(x, y, w, h).clip();
@@ -180,9 +183,16 @@ function drawSlideElement(doc: Doc, el: Element) {
 
 function slidesPdf(input: ExportInput): Promise<Buffer> {
   const doc = createDoc({ size: [SLIDE_W * PT, SLIDE_H * PT], margin: 0, autoFirstPage: false }, input.content.title);
+  // PDFKit caches images by their string source, so a backdrop is embedded once however many slides use it
+  const backdrops = new Map<LoadedImage, string>();
   for (const spec of buildSlides(input, input.images ?? new Map())) {
     doc.addPage();
     doc.rect(0, 0, SLIDE_W * PT, SLIDE_H * PT).fill(spec.background);
+    if (spec.backdrop) {
+      const url = backdrops.get(spec.backdrop) ?? `data:${spec.backdrop.mime};base64,${spec.backdrop.data.toString("base64")}`;
+      backdrops.set(spec.backdrop, url);
+      doc.image(url, 0, 0, { width: SLIDE_W * PT, height: SLIDE_H * PT });
+    }
     for (const el of spec.elements) drawSlideElement(doc, el);
   }
   return toBuffer(doc);

@@ -3,7 +3,7 @@ import { z } from "zod";
 export const DOC_TYPES = ["essay", "presentation", "work"] as const;
 export const LANGUAGES = ["uz-latn", "uz-cyrl", "ru", "en"] as const;
 export const UI_LANGUAGES = ["uz-latn", "uz-cyrl", "ru"] as const;
-export const TEMPLATE_IDS = ["modern", "minimal", "dark"] as const;
+export const TEMPLATE_IDS = ["modern", "minimal", "dark", "aurora", "pastel"] as const;
 export const EXPORT_FORMATS = ["pdf", "docx", "pptx"] as const;
 export const GENERATION_STATUSES = ["pending", "done", "failed"] as const;
 

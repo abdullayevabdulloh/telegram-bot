@@ -47,7 +47,7 @@ EduGen AI — bu:
 - **Lotin ↔ kirill** — hujjat yoki istalgan matnni bir bosishda o‘girish (AI’siz, bepul)
 
 ### 🎨 Editor
-- Shablonlar: **Modern / Minimal / Dark** — preview va eksport bir xil
+- Shablonlar: **Modern / Minimal / Dark / Aurora / Pastel** — preview va eksport bir xil
 - Joyida tahrirlash, bo‘lim/slayd qo‘shish, o‘chirish, ko‘chirish, avtosaqlash
 - **AI tugmalari** tanlangan matn uchun: ✂️ Qisqartir · ➕ Kengaytir · 💡 Soddalashtir · 📌 Misol qo‘sh
 - **Versiyalar tarixi** — istalgan oldingi holatga qaytish
@@ -207,7 +207,7 @@ RULES: no invented statistics, quotes, URLs or DOIs; return ONLY JSON matching t
 |---------|-----------|
 | Interfeys tili | uz-latn, uz-cyrl, ru |
 | Hujjatlar tili/yozuvi | uz-latn, uz-cyrl, ru, en |
-| Standart shablon | modern, minimal, dark |
+| Standart shablon | modern, minimal, dark, aurora, pastel |
 
 Bitta hujjat uchun tilni yaratishdan oldin alohida o‘zgartirish mumkin.
 
@@ -294,6 +294,8 @@ yuboriladi; prod’da webhook + `secretToken`.
 | Modern | `#FFFFFF` | `#4F46E5` | Montserrat / Inter | taqdimot, esse |
 | Minimal | `#FFFFFF` | `#111827` | Inter | rasmiy hujjatlar |
 | Dark | `#0F172A` | `#38BDF8` | Montserrat / Inter | ekranda ko‘rsatish |
+| Aurora | to‘q gradient (mavzu rangida) | mavzu rangi | Montserrat / Inter | zamonaviy taqdimot: nurli fon, shisha kartochkalar |
+| Pastel | yorug‘ pastel gradient | mavzu rangi | Poppins / Inter | yengil, zamonaviy taqdimot |
 
 Ranglar va shriftlar bitta joyda (`shared/templates`) — preview, taqdimot rejimi va barcha eksportlar
 shundan foydalanadi. Shriftlar lotin, kirill va `ʻ` belgisini qo‘llashi shart.

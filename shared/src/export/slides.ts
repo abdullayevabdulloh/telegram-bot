@@ -4,6 +4,7 @@ import { docStrings, type DocStrings } from "../i18n";
 import type { LoadedImage } from "../images";
 import type { DocumentContent, Section, SlideImage, SlideLayout, TemplateId } from "../schema";
 import { mix, slideColors, type SlideColors } from "../templates";
+import { renderBackdrop } from "./backdrop";
 import type { ExportInput } from "./common";
 
 /**
@@ -35,9 +36,16 @@ interface Box {
   h: number;
 }
 
+/** Outline of a shape; width in points. */
+export interface Stroke {
+  color: string;
+  opacity?: number;
+  width: number;
+}
+
 export type Element =
-  | (Box & { kind: "rect"; fill: string; opacity?: number; radius?: number })
-  | (Box & { kind: "ellipse"; fill: string; opacity?: number })
+  | (Box & { kind: "rect"; fill: string; opacity?: number; radius?: number; stroke?: Stroke })
+  | (Box & { kind: "ellipse"; fill: string; opacity?: number; stroke?: Stroke })
   | (Box & { kind: "image"; image: LoadedImage })
   | (Box & {
       kind: "text";
@@ -67,6 +75,8 @@ export interface Paragraph {
 
 export interface SlideSpec {
   background: string;
+  /** Gradient image over `background` (gradient templates). */
+  backdrop?: LoadedImage;
   elements: Element[];
   notes?: string;
 }
@@ -142,6 +152,8 @@ interface Ctx {
   template: TemplateId;
   s: DocStrings;
   images: Map<string, LoadedImage>;
+  /** Rendered `c.backdrop`, once per deck. */
+  backdrops?: { soft: LoadedImage; vivid: LoadedImage };
 }
 
 const MARGIN = 0.8;
@@ -162,6 +174,19 @@ function header(ctx: Ctx, title: string, x: number, y: number, w: number, maxHei
     ],
     bottom: y + 0.25 + height,
   };
+}
+
+/** Card or side panel: solid surface color, or translucent glass with a light edge on gradient templates. */
+function panel(ctx: Ctx, box: Box, radius?: number): Element {
+  const { glass } = ctx.c;
+  if (!glass) return { kind: "rect", ...box, fill: ctx.c.surface, radius };
+  return { kind: "rect", ...box, fill: glass.fill, opacity: glass.opacity, radius, stroke: { color: glass.edge, opacity: glass.edgeOpacity, width: 1 } };
+}
+
+/** Decorative glass bubble of the gradient templates. */
+function orb(ctx: Ctx, box: Box): Element {
+  const glass = ctx.c.glass!;
+  return { kind: "ellipse", ...box, fill: glass.fill, opacity: glass.opacity, stroke: { color: glass.edge, opacity: glass.edgeOpacity, width: 1 } };
 }
 
 function slideNumber(ctx: Ctx, n: number, color = ctx.c.muted): Element {
@@ -240,6 +265,21 @@ function coverBase(ctx: Ctx, image: LoadedImage | undefined, photo: SlideImage |
     return { spec: { background: "#FFFFFF", elements }, panel: { x: 0, y: 0, w: SLIDE_W - 2.2, h: SLIDE_H }, ink: c.text };
   }
 
+  if (c.glass) {
+    if (image) {
+      // Photo over the whole slide, the title on a floating glass card
+      const full = { x: 0, y: 0, w: SLIDE_W, h: SLIDE_H };
+      const card = { x: 0.55, y: 0.55, w: 7.3, h: SLIDE_H - 1.1 };
+      elements.push({ kind: "image", ...full, image }, { kind: "rect", ...full, fill: "#000000", opacity: 0.25 });
+      const edge = { color: c.glass.edge, opacity: c.glass.edgeOpacity, width: 1 };
+      elements.push({ kind: "rect", ...card, fill: c.coverBg, opacity: 0.8, radius: 0.4, stroke: edge });
+      elements.push(...credit(ctx, photo!, { x: card.x + card.w, y: 0, w: SLIDE_W - card.x - card.w, h: SLIDE_H }));
+      return { spec: { background: c.coverBg, elements }, panel: { x: card.x, y: 0, w: card.w, h: SLIDE_H }, ink: c.coverText };
+    }
+    elements.push(orb(ctx, { x: 8.7, y: -1.9, w: 6.2, h: 6.2 }), orb(ctx, { x: 10.7, y: 4.6, w: 2.4, h: 2.4 }));
+    return { spec: { background: c.coverBg, backdrop: ctx.backdrops?.vivid, elements }, panel: { x: 0, y: 0, w: 9.2, h: SLIDE_H }, ink: c.coverText };
+  }
+
   if (image) {
     const full = { x: 0, y: 0, w: SLIDE_W, h: SLIDE_H };
     elements.push({ kind: "image", ...full, image });
@@ -306,8 +346,9 @@ function bulletsSlide(ctx: Ctx, section: Section, items: string[], n: number): S
   const title = fit([34, 30, 28, 26, 24, 22, 20], 3.6, (s) => textHeight(runs, s, panelW - 1.4), (s) => wordsFit([section.heading], s, panelW - 1.4));
   return {
     background: c.bg,
+    backdrop: ctx.backdrops?.soft,
     elements: [
-      { kind: "rect", x: 0, y: 0, w: panelW, h: SLIDE_H, fill: c.surface },
+      c.glass ? panel(ctx, { x: 0.45, y: 0.45, w: panelW - 0.45, h: SLIDE_H - 0.9 }, 0.35) : panel(ctx, { x: 0, y: 0, w: panelW, h: SLIDE_H }),
       text({ x: MARGIN, y: 0.8, w: 3.0, h: 1.2 }, [{ text: String(n).padStart(2, "0"), bold: true }], 64, c.accent, { font: "heading" }),
       { kind: "rect", x: MARGIN, y: 2.25, w: 0.6, h: 0.08, fill: c.primary },
       text({ x: MARGIN, y: 2.55, w: panelW - 1.4, h: title.height }, runs, title.size, c.primary, { font: "heading" }),
@@ -328,6 +369,7 @@ function imageSlide(ctx: Ctx, section: Section, items: string[], n: number, imag
   const head = header(ctx, section.heading, x, 0.8, w);
   return {
     background: c.bg,
+    backdrop: ctx.backdrops?.soft,
     elements: [
       { kind: "image", ...photoBox, image },
       { kind: "rect", x: photoLeft ? photoW : SLIDE_W - photoW - 0.1, y: 0, w: 0.1, h: SLIDE_H, fill: c.accent },
@@ -386,8 +428,8 @@ function cardsSlide(ctx: Ctx, section: Section, items: string[], n: number): Sli
   parts.forEach((p, i) => {
     const x = MARGIN + (i % cols) * (cardW + gap);
     const y = top + Math.floor(i / cols) * (cardH + gap);
-    elements.push({ kind: "rect", x, y, w: cardW, h: cardH, fill: c.surface, radius: 0.15 });
-    elements.push({ kind: "rect", x: x + pad, y, w: cardW - pad * 2, h: 0.07, fill: i % 2 ? c.accent : c.primary });
+    elements.push(panel(ctx, { x, y, w: cardW, h: cardH }, c.glass ? 0.25 : 0.15));
+    if (!c.glass) elements.push({ kind: "rect", x: x + pad, y, w: cardW - pad * 2, h: 0.07, fill: i % 2 ? c.accent : c.primary });
     elements.push({ kind: "ellipse", x: x + pad, y: y + pad, w: badge, h: badge, fill: c.primary });
     elements.push(
       text({ x: x + pad, y: y + pad, w: badge, h: badge }, [{ text: String(i + 1), bold: true }], rows === 1 ? 18 : 15, c.onPrimary, {
@@ -405,7 +447,7 @@ function cardsSlide(ctx: Ctx, section: Section, items: string[], n: number): Sli
     elements.push(text({ x: x + pad, y: ty, w: innerW, h: y + cardH - pad - ty }, [{ text: p.body }], body.size, p.label ? c.muted : c.text));
   });
   elements.push(slideNumber(ctx, n));
-  return { background: c.bg, elements };
+  return { background: c.bg, backdrop: ctx.backdrops?.soft, elements };
 }
 
 /** Numbered circles on a line, a label and a short text under each. */
@@ -439,14 +481,14 @@ function stepsSlide(ctx: Ctx, section: Section, items: string[], n: number): Sli
   const textTop = lineY + d / 2 + 0.35;
 
   const first = MARGIN + cellW / 2;
-  const elements: Element[] = [
-    ...head.elements,
-    { kind: "rect", x: first, y: lineY - 0.025, w: cellW * (items.length - 1), h: 0.05, fill: mix(c.primary, c.bg, 0.55) },
-  ];
+  const elements: Element[] = [...head.elements];
   parts.forEach((p, i) => {
     const cx = first + i * cellW;
     const fill = i === parts.length - 1 ? c.accent : c.primary;
-    elements.push({ kind: "ellipse", x: cx - d / 2 - 0.08, y: lineY - d / 2 - 0.08, w: d + 0.16, h: d + 0.16, fill: c.bg });
+    // The line to the next step stops short of both circles, so nothing has to mask it (gradients show through)
+    if (i < parts.length - 1) {
+      elements.push({ kind: "rect", x: cx + d / 2 + 0.08, y: lineY - 0.025, w: cellW - d - 0.16, h: 0.05, fill: mix(c.primary, c.bg, 0.55) });
+    }
     elements.push({ kind: "ellipse", x: cx - d / 2, y: lineY - d / 2, w: d, h: d, fill });
     elements.push(
       text({ x: cx - d / 2, y: lineY - d / 2, w: d, h: d }, [{ text: String(i + 1), bold: true }], 22, c.onPrimary, {
@@ -463,7 +505,7 @@ function stepsSlide(ctx: Ctx, section: Section, items: string[], n: number): Sli
     elements.push(text({ ...box, y: ty, h: 6.9 - ty }, [{ text: p.body }], bodySize, p.label ? c.muted : c.text, { align: "center" }));
   });
   elements.push(slideNumber(ctx, n));
-  return { background: c.bg, elements };
+  return { background: c.bg, backdrop: ctx.backdrops?.soft, elements };
 }
 
 /** One key sentence, large, on a colored slide. */
@@ -474,14 +516,22 @@ function highlightSlide(ctx: Ctx, section: Section, items: string[], n: number):
       ? { bg: "#F4F4F5", ink: c.text, soft: c.muted }
       : template === "dark"
         ? { bg: c.surface, ink: "#FFFFFF", soft: c.muted }
-        : { bg: c.primary, ink: "#FFFFFF", soft: mix(c.primary, "#FFFFFF", 0.75) };
+        : c.backdrop
+          ? { bg: c.bg, ink: c.coverText, soft: mix(c.coverText, c.bg, 0.3) }
+          : { bg: c.primary, ink: "#FFFFFF", soft: mix(c.primary, "#FFFFFF", 0.75) };
   const [statement = section.heading, ...support] = items;
   const w = 10.2;
   const runs = [{ text: statement, bold: true }];
   const main = fit([42, 38, 34, 30, 28, 26], 3.0, (s) => textHeight(runs, s, w), (s) => wordsFit([statement], s, w));
+  const big = { x: 9.6, y: 3.9, w: 5.6, h: 5.6 };
+  const small = { x: 11.6, y: -1.0, w: 2.6, h: 2.6 };
   const elements: Element[] = [
-    { kind: "ellipse", x: 9.6, y: 3.9, w: 5.6, h: 5.6, fill: c.accent, opacity: 0.22 },
-    { kind: "ellipse", x: 11.6, y: -1.0, w: 2.6, h: 2.6, fill: "#FFFFFF", opacity: 0.1 },
+    ...(c.glass
+      ? [orb(ctx, big), orb(ctx, small)]
+      : [
+          { kind: "ellipse" as const, ...big, fill: c.accent, opacity: 0.22 },
+          { kind: "ellipse" as const, ...small, fill: "#FFFFFF", opacity: 0.1 },
+        ]),
     text({ x: 1.1, y: 0.75, w: 9.0, h: 0.4 }, [{ text: section.heading.toUpperCase(), bold: true }], 14, c.accent, {
       font: "heading", spacing: 2,
     }),
@@ -502,7 +552,7 @@ function highlightSlide(ctx: Ctx, section: Section, items: string[], n: number):
     text({ x: 1.55, y: 1.9, w, h: y - 1.9 }, runs, main.size, style.ink, { font: "heading", then }),
   );
   elements.push(slideNumber(ctx, n, style.soft));
-  return { background: style.bg, elements };
+  return { background: style.bg, backdrop: ctx.backdrops?.vivid, elements };
 }
 
 /** The layout a slide is drawn with: the stored one when the content fits it, otherwise a varied default. */
@@ -518,7 +568,9 @@ function resolveLayout(section: Section, items: number, index: number, hasImage:
 }
 
 export function buildSlides({ content, template, language, meta }: ExportInput, images: Map<string, LoadedImage>): SlideSpec[] {
-  const ctx: Ctx = { c: slideColors(template, content.theme), template, s: docStrings(language), images };
+  const c = slideColors(template, content.theme);
+  const backdrops = c.backdrop && { soft: renderBackdrop(c.backdrop.soft), vivid: renderBackdrop(c.backdrop.vivid) };
+  const ctx: Ctx = { c, template, s: docStrings(language), images, backdrops };
   const slides: SlideSpec[] = [cover(ctx, content, meta)];
   content.sections.forEach((section, index) => {
     const items = section.bullets?.length ? section.bullets : (section.paragraphs ?? []);

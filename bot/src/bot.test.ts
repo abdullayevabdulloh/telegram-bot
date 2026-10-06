@@ -83,7 +83,7 @@ describe("bot conversation", () => {
     const lengths = await send("Sun'iy intellekt ta'limda");
     expect(buttons(lengths)).toEqual(["l:6", "l:8", "l:10", "l:12", "l:15", "l:20", "cancel"]);
     const templates = await click("l:10");
-    expect(buttons(templates)).toEqual(["tpl:modern", "tpl:minimal", "tpl:dark", "cancel"]);
+    expect(buttons(templates)).toEqual(["tpl:modern", "tpl:minimal", "tpl:dark", "tpl:aurora", "tpl:pastel", "cancel"]);
 
     const confirm = await click("tpl:modern");
     expect(texts(confirm).join("\n")).toContain("O‘zbekcha (lotin)");

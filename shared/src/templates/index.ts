@@ -24,6 +24,8 @@ export interface Template {
   /** Web fonts (preview). PDF embeds Noto Sans; Office files reference `office` fonts by name. */
   fonts: { heading: string; body: string };
   office: { heading: string; body: string };
+  /** Palette for decks without a topic theme; gradient templates need one to paint their backdrop. */
+  theme?: SlideTheme;
 }
 
 export const templates: Record<TemplateId, Template> = {
@@ -78,6 +80,42 @@ export const templates: Record<TemplateId, Template> = {
     fonts: { heading: "Montserrat", body: "Inter" },
     office: { heading: "Calibri", body: "Calibri" },
   },
+  aurora: {
+    id: "aurora",
+    name: "Aurora",
+    screen: {
+      bg: "#0B1026",
+      surface: "#1A1F38",
+      text: "#E5E7EB",
+      muted: "#A1A7B3",
+      primary: "#818CF8",
+      accent: "#06B6D4",
+      coverBg: "#0B1026",
+      coverText: "#FFFFFF",
+    },
+    print: { heading: "#4338CA", accent: "#0891B2", text: "#111827", muted: "#6B7280" },
+    fonts: { heading: "Montserrat", body: "Inter" },
+    office: { heading: "Calibri", body: "Calibri" },
+    theme: "technology",
+  },
+  pastel: {
+    id: "pastel",
+    name: "Pastel",
+    screen: {
+      bg: "#FDF8FD",
+      surface: "#FFFFFF",
+      text: "#1F2937",
+      muted: "#6B7280",
+      primary: "#C026D3",
+      accent: "#F97316",
+      coverBg: "#FDF8FD",
+      coverText: "#111827",
+    },
+    print: { heading: "#A21CAF", accent: "#EA580C", text: "#111827", muted: "#6B7280" },
+    fonts: { heading: "Poppins", body: "Inter" },
+    office: { heading: "Calibri", body: "Calibri" },
+    theme: "art",
+  },
 };
 
 export function getTemplate(id: TemplateId): Template {
@@ -113,6 +151,22 @@ export const palettes: Record<SlideTheme, Palette> = {
   society: { primary: "#B45309", accent: "#0D9488", tint: "#FCF4EA", deep: "#1E1306", bright: "#FBBF24" },
 };
 
+/** A soft radial glow of a backdrop: center as fractions of the slide size, radius as a fraction of its width. */
+export interface Glow {
+  x: number;
+  y: number;
+  r: number;
+  color: string;
+  /** 0–1: how much of the glow color shows at its center. */
+  strength: number;
+}
+
+/** Gradient painted behind a slide: a base color with glows over it. */
+export interface Backdrop {
+  base: string;
+  glows: Glow[];
+}
+
 export interface SlideColors {
   bg: string;
   surface: string;
@@ -124,6 +178,10 @@ export interface SlideColors {
   coverText: string;
   /** Text on primary-colored panels. */
   onPrimary: string;
+  /** Gradient templates: a calm backdrop for content slides, a vivid one for the cover, closing and highlight slides. */
+  backdrop?: { soft: Backdrop; vivid: Backdrop };
+  /** Gradient templates draw translucent "glass" panels with a light edge instead of solid `surface` ones. */
+  glass?: { fill: string; opacity: number; edge: string; edgeOpacity: number };
 }
 
 /** Blends two #RRGGBB colors: amount 0 → a, 1 → b. */
@@ -133,11 +191,60 @@ export function mix(a: string, b: string, amount: number): string {
   return `#${out.map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
 }
 
-/** Template sets the style (light, minimal, dark); the topic theme sets the colors. */
-export function slideColors(template: TemplateId, theme?: SlideTheme): SlideColors {
+/** Template sets the style (light, minimal, dark, gradient); the topic theme sets the colors. */
+export function slideColors(template: TemplateId, theme = templates[template].theme): SlideColors {
   if (!theme) return { ...templates[template].screen, onPrimary: "#FFFFFF" };
   const p = palettes[theme];
   switch (template) {
+    case "aurora":
+      return {
+        bg: p.deep, surface: mix(p.deep, "#FFFFFF", 0.08), text: "#E5E7EB", muted: "#A1A7B3", primary: p.bright, accent: p.accent,
+        coverBg: p.deep, coverText: "#FFFFFF", onPrimary: p.deep,
+        backdrop: {
+          soft: {
+            base: p.deep,
+            glows: [
+              { x: 1, y: 0, r: 0.5, color: p.primary, strength: 0.65 },
+              { x: 0, y: 1, r: 0.42, color: p.accent, strength: 0.3 },
+            ],
+          },
+          vivid: {
+            base: p.deep,
+            glows: [
+              { x: 0.88, y: 0.08, r: 0.7, color: p.primary, strength: 0.95 },
+              { x: 0.08, y: 0.95, r: 0.58, color: p.accent, strength: 0.75 },
+              { x: 0.58, y: 0.6, r: 0.36, color: p.bright, strength: 0.4 },
+            ],
+          },
+        },
+        glass: { fill: "#FFFFFF", opacity: 0.07, edge: "#FFFFFF", edgeOpacity: 0.16 },
+      };
+    case "pastel": {
+      const base = mix(p.tint, "#FFFFFF", 0.4);
+      const pale = (color: string, amount: number) => mix(color, "#FFFFFF", amount);
+      return {
+        bg: base, surface: "#FFFFFF", text: "#1F2937", muted: "#6B7280", primary: p.primary, accent: p.accent,
+        coverBg: base, coverText: "#111827", onPrimary: "#FFFFFF",
+        backdrop: {
+          soft: {
+            base,
+            glows: [
+              { x: 1, y: 0, r: 0.55, color: pale(p.primary, 0.7), strength: 0.85 },
+              { x: 0, y: 1, r: 0.5, color: pale(p.accent, 0.65), strength: 0.75 },
+            ],
+          },
+          vivid: {
+            base,
+            glows: [
+              { x: 0.9, y: 0.05, r: 0.72, color: pale(p.primary, 0.45), strength: 1 },
+              { x: 0.05, y: 0.95, r: 0.62, color: pale(p.accent, 0.4), strength: 0.95 },
+              { x: 0.5, y: 0.5, r: 0.34, color: pale(p.bright, 0.55), strength: 0.55 },
+            ],
+          },
+        },
+        glass: { fill: "#FFFFFF", opacity: 0.62, edge: "#FFFFFF", edgeOpacity: 0.9 },
+      };
+    }
     case "dark":
       return {
         bg: p.deep, surface: mix(p.deep, "#FFFFFF", 0.08), text: "#E5E7EB", muted: "#9CA3AF", primary: p.bright, accent: p.accent,
