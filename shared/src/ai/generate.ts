@@ -9,12 +9,16 @@ import {
   WorkOutlineOutput,
   essayPrompt,
   presentationPrompt,
+  reportFinalPrompt,
+  reportOutlinePrompt,
+  reportSectionCount,
   systemPrompt,
   tokenBudget,
   workChapterCount,
   workChapterPrompt,
   workFinalPrompt,
   workOutlinePrompt,
+  type PaperKind,
   type WritingLanguage,
 } from "./prompts";
 import type { AIRouter, RoutedResult } from "./router";
@@ -29,7 +33,7 @@ export interface GenerateInput {
 
 export interface ProgressUpdate {
   progress: number;
-  stage: { key: "writing" | "outline" | "chapter" | "final"; params?: Record<string, number> };
+  stage: { key: "writing" | "outline" | "chapter" | "section" | "final"; params?: Record<string, number> };
 }
 
 export interface GenerateResult {
@@ -185,7 +189,7 @@ export async function generateDocument(
       sections: withSectionIds(slides.map((s, i) => ({ ...s, layout: layouts[i] }))),
     };
   } else {
-    content = await generateWork(router, input, writing, system, meter, onProgress);
+    content = await generateWork(router, input, input.type === "report" ? "report" : "work", writing, system, meter, onProgress);
   }
 
   content = mapStrings(content, input.language === "uz-cyrl" ? latinToCyrillic : writing === "uz-latn" ? normalizeUzLatin : (s) => s);
@@ -203,9 +207,11 @@ export async function generateDocument(
   };
 }
 
+/** Independent work or report: outline → chapters (two at a time) → introduction, conclusion and references. */
 async function generateWork(
   router: AIRouter,
   input: GenerateInput,
+  kind: PaperKind,
   writing: WritingLanguage,
   system: string,
   meter: UsageMeter,
@@ -213,7 +219,9 @@ async function generateWork(
 ): Promise<DocumentContent> {
   const s = docStrings(writing);
   const totalWords = input.length * WORDS_PER_PAGE;
-  const chapterCount = workChapterCount(input.length);
+  const report = kind === "report";
+  const chapterCount = report ? reportSectionCount(input.length) : workChapterCount(input.length);
+  const chapterStage = report ? "section" : "chapter";
 
   await onProgress({ progress: 5, stage: { key: "outline" } });
   const outline = meter.add(
@@ -221,7 +229,9 @@ async function generateWork(
       schema: WorkOutlineOutput,
       schemaName: "work_outline",
       system,
-      user: workOutlinePrompt(input.topic, input.length, chapterCount),
+      user: report
+        ? reportOutlinePrompt(input.topic, input.length, chapterCount)
+        : workOutlinePrompt(input.topic, input.length, chapterCount),
       maxTokens: tokenBudget(400),
     }),
   );
@@ -234,21 +244,21 @@ async function generateWork(
 
   const chapterWords = Math.round((totalWords * 0.78) / outline.chapters.length);
   let done = 0;
-  await onProgress({ progress: 15, stage: { key: "chapter", params: { n: 1, total: outline.chapters.length } } });
+  await onProgress({ progress: 15, stage: { key: chapterStage, params: { n: 1, total: outline.chapters.length } } });
   const chapters = await runPool(outline.chapters.length, 2, async (index) => {
     const out = meter.add(
       await router.generateJson({
         schema: ChapterOutput,
         schemaName: "work_chapter",
         system,
-        user: workChapterPrompt(outline, index, chapterWords),
+        user: workChapterPrompt(outline, index, chapterWords, kind),
         maxTokens: tokenBudget(chapterWords),
       }),
     );
     done++;
     await onProgress({
       progress: 15 + Math.round((65 * done) / outline.chapters.length),
-      stage: { key: "chapter", params: { n: Math.min(done + 1, outline.chapters.length), total: outline.chapters.length } },
+      stage: { key: chapterStage, params: { n: Math.min(done + 1, outline.chapters.length), total: outline.chapters.length } },
     });
     return cleanList(out.paragraphs);
   });
@@ -261,7 +271,7 @@ async function generateWork(
       schema: WorkFinalOutput,
       schemaName: "work_final",
       system,
-      user: workFinalPrompt(outline, introWords, conclusionWords),
+      user: (report ? reportFinalPrompt : workFinalPrompt)(outline, introWords, conclusionWords),
       maxTokens: tokenBudget(introWords + conclusionWords + 400),
     }),
   );
@@ -269,7 +279,7 @@ async function generateWork(
   const chapterHeadings = outline.chapters.map((c, i) => `${i + 1}. ${c.heading}`);
   const references = cleanList(final.references);
   return {
-    type: "work",
+    type: kind,
     title: outline.title,
     plan: [s.introduction, ...chapterHeadings, s.conclusion, ...(references.length ? [s.references] : [])],
     sections: withSectionIds([

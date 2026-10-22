@@ -112,6 +112,14 @@ export function presentationPrompt(topic: string, slides: number, language: Writ
   };
 }
 
+/** Papers written outline → chapters → introduction/conclusion: an independent work or a seminar report. */
+export type PaperKind = "work" | "report";
+
+const PAPER_NAMES: Record<PaperKind, string> = {
+  work: 'an independent academic work ("mustaqil ish")',
+  report: 'a student report ("doklad") for a university seminar',
+};
+
 export function workChapterCount(pages: number): number {
   if (pages <= 8) return 2;
   if (pages <= 15) return 3;
@@ -128,20 +136,36 @@ export function workOutlinePrompt(topic: string, pages: number, chapters: number
   ].join("\n");
 }
 
+/** A report is short: two sections up to 5 pages, three above. */
+export function reportSectionCount(pages: number): number {
+  return pages <= 5 ? 2 : 3;
+}
+
+export function reportOutlinePrompt(topic: string, pages: number, sections: number) {
+  return [
+    `TASK: outline of ${PAPER_NAMES.report}`,
+    `TOPIC: "${topic}"`,
+    `VOLUME: about ${pages} A4 pages`,
+    `Give a title and exactly ${sections} sections. Each section has an informative heading (no numbering, no word "section") and 2–3 subtopics it will cover.`,
+    "Do not include the introduction, conclusion or references — they are written separately.",
+  ].join("\n");
+}
+
 function outlineText(outline: WorkOutline): string {
   return outline.chapters.map((c, i) => `${i + 1}. ${c.heading} — ${c.subtopics.join("; ")}`).join("\n");
 }
 
-export function workChapterPrompt(outline: WorkOutline, index: number, words: number) {
+export function workChapterPrompt(outline: WorkOutline, index: number, words: number, kind: PaperKind = "work") {
   const chapter = outline.chapters[index]!;
   const paragraphs = clamp(Math.round(words / 120), 3, 12);
+  const part = kind === "report" ? "SECTION" : "CHAPTER";
   return [
-    "TASK: write one chapter of an independent academic work",
+    `TASK: write one ${part.toLowerCase()} of ${PAPER_NAMES[kind]}`,
     `WORK TITLE: "${outline.title}"`,
     `FULL OUTLINE:\n${outlineText(outline)}`,
-    `WRITE CHAPTER ${index + 1}: "${chapter.heading}", covering: ${chapter.subtopics.join("; ")}.`,
+    `WRITE ${part} ${index + 1}: "${chapter.heading}", covering: ${chapter.subtopics.join("; ")}.`,
     `LENGTH: about ${words} words in ${paragraphs} paragraphs.`,
-    "Do not repeat the chapter heading in the text and do not write an introduction or conclusion for the whole work.",
+    `Do not repeat the ${part.toLowerCase()} heading in the text and do not write an introduction or conclusion for the whole work.`,
   ].join("\n");
 }
 
@@ -153,5 +177,16 @@ export function workFinalPrompt(outline: WorkOutline, introWords: number, conclu
     `INTRODUCTION: about ${introWords} words in 3–4 paragraphs — relevance of the topic, aim and objectives, object and subject, structure of the work.`,
     `CONCLUSION: about ${conclusionWords} words in 2–4 paragraphs — main findings of every chapter and practical recommendations.`,
     "REFERENCES: 6–10 real, widely known textbooks and monographs you are sure exist, formatted as: Author(s). Title. — City: Publisher, Year. Never invent sources, URLs or DOIs; leave a source out if unsure.",
+  ].join("\n");
+}
+
+export function reportFinalPrompt(outline: WorkOutline, introWords: number, conclusionWords: number) {
+  return [
+    `TASK: write the introduction, the conclusion and the list of references of ${PAPER_NAMES.report}`,
+    `REPORT TITLE: "${outline.title}"`,
+    `OUTLINE:\n${outlineText(outline)}`,
+    `INTRODUCTION: about ${introWords} words in 2–3 paragraphs — relevance of the topic, aim and objectives.`,
+    `CONCLUSION: about ${conclusionWords} words in 2–3 paragraphs — key findings of every section.`,
+    "REFERENCES: 3–6 real, widely known textbooks or monographs you are sure exist, formatted as: Author(s). Title. — City: Publisher, Year. Never invent sources, URLs or DOIs; give fewer items or an empty list if unsure.",
   ].join("\n");
 }

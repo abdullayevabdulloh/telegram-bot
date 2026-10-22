@@ -32,9 +32,11 @@ describe("i18n", () => {
 
   it("lists reply-keyboard texts for every UI language", () => {
     expect(allTranslations("menu.new")).toEqual(["📝 Yangi hujjat", "📝 Янги ҳужжат", "📝 Новый документ"]);
+    expect(allTranslations("menu.report")).toEqual(["🎤 Doklad yaratish", "🎤 Доклад яратиш", "🎤 Создать доклад"]);
   });
 
   it("derives document strings for Cyrillic Uzbek", () => {
     expect(docStrings("uz-cyrl").references).toBe("Фойдаланилган адабиётлар");
+    expect([docStrings("uz-latn").report, docStrings("uz-cyrl").report, docStrings("en").report]).toEqual(["DOKLAD", "ДОКЛАД", "REPORT"]);
   });
 });

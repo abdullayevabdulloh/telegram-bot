@@ -22,6 +22,8 @@ export interface BotSession {
   length?: number;
   template?: TemplateId;
   meta?: TitleMeta;
+  /** Set while one field is changed from the confirmation screen: the next answer returns there. */
+  editing?: boolean;
 }
 
 export interface BotContext extends Context {

@@ -181,6 +181,35 @@ describe("generateDocument", () => {
     expect(ai.inputTokens).toBe(40); // outline + 2 chapters + final
   });
 
+  it("writes a short report with two sections and never sends title-page data", async () => {
+    const prompts: string[] = [];
+    const writer = fakeWriter();
+    const recording: AIProvider = {
+      name: "fake",
+      generateJson: (req) => (prompts.push(req.user), writer.generateJson(req)),
+    };
+    const stages: string[] = [];
+    const { content } = await generateDocument(
+      new AIRouter([recording], fast),
+      { type: "report", topic: "Raqamli iqtisodiyot", language: "uz-latn", length: 5 },
+      (u) => void stages.push(u.stage.key),
+    );
+    expect(content.type).toBe("report");
+    expect(content.plan).toEqual(["Kirish", "1. Nazariy asoslar", "2. Amaliy tahlil", "Xulosa", "Foydalanilgan adabiyotlar"]);
+    expect(content.sections.map((s) => s.heading)).toEqual(["Kirish", "1. Nazariy asoslar", "2. Amaliy tahlil", "Xulosa"]);
+    expect(stages).toContain("section");
+    expect(stages).not.toContain("chapter");
+    expect(prompts).toHaveLength(4); // outline + 2 sections + final
+    expect(prompts[0]).toContain('report ("doklad")');
+    expect(prompts[0]).toContain("exactly 2 sections");
+    expect(prompts.at(-1)).toContain("REFERENCES: 3–6");
+  });
+
+  it("gives a longer report three sections", async () => {
+    const { content } = await generateDocument(router(), { type: "report", topic: "Iqtisodiyot", language: "ru", length: 7 });
+    expect(content.sections).toHaveLength(5); // introduction + 3 + conclusion
+  });
+
   it("produces Cyrillic Uzbek by transliteration", async () => {
     const { content } = await generateDocument(router(), { type: "work", topic: "Iqtisodiyot", language: "uz-cyrl", length: 8 });
     expect(content.title).toBe("Рақамли иқтисодиёт");

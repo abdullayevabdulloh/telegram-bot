@@ -43,7 +43,7 @@ export function parseTitleMeta(text: string): TitleMeta {
     const match = /^\s*([^:]{1,40}):\s*(.+?)\s*$/.exec(line);
     if (!match) continue;
     const field = ALIASES[normaliseLabel(match[1]!)];
-    const value = match[2]!;
+    const value = match[2]!.replace(/\p{Cc}/gu, " ").trim();
     if (!field || !value) continue;
     if (field === "year") {
       const year = Number.parseInt(value, 10);

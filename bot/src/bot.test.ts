@@ -6,6 +6,7 @@ import { closeQueues } from "@edugen/shared/queue";
 import { Telegram } from "telegraf";
 import type { Update } from "telegraf/types";
 import { createBot } from "./bot";
+import { mainMenu } from "./ui";
 
 type Call = { method: string; payload: Record<string, unknown> };
 
@@ -120,6 +121,113 @@ describe("bot conversation", () => {
     const generation = await Generation.findOne().lean();
     expect(generation).toMatchObject({ template: "dark", length: 25 });
     expect(generation?.meta).toEqual({ university: "TDIU", student: "Aliyev Vali", group: "IQ-21" });
+  });
+
+  it("creates a report from the main-menu shortcut and edits it before creating", async () => {
+    for (const lang of ["uz-latn", "uz-cyrl", "ru"] as const) {
+      expect(JSON.stringify(mainMenu(lang).reply_markup.keyboard[0])).toMatch(/🎤/);
+    }
+    expect(buttons(await send("/new"))).toContain("t:report");
+
+    expect(texts(await send("🎤 Doklad yaratish"))[0]).toContain("🎤 Doklad mavzusini");
+    expect(texts(await send("!!!"))[0]).toContain("3 dan 200");
+    const lengths = await send("Sun’iy intellektning ta’limdagi o‘rni");
+    expect(texts(lengths)[0]).toContain("titul varaq va rejadan tashqari");
+    expect(buttons(lengths)).toEqual(["l:3", "l:5", "l:7", "l:10", "cancel"]);
+    expect(texts(await send("abc"))[0]).toContain("tugmalardan birini tanlang"); // the step is kept
+    expect(buttons(await click("l:5"))).toEqual(["meta:skip", "cancel"]);
+    await send("OTM: TDIU\nFan: Informatika");
+
+    const confirm = texts(await click("tpl:minimal")).join("\n");
+    expect(confirm).toContain("🎤 Doklad");
+    expect(confirm).toContain("5 bet");
+    expect(confirm).toContain("• OTM: TDIU\n• Fan: Informatika");
+    expect(confirm).not.toContain("Talaba");
+
+    expect(buttons(await click("edit"))).toEqual(["ed:topic", "ed:length", "ed:meta", "ed:template", "ed:back"]);
+    expect(texts(await click("ed:topic")).some((t) => t.includes("mavzusini"))).toBe(true);
+    const edited = texts(await send("Raqamli ta’lim")).join("\n");
+    expect(edited).toContain("Tekshirib oling");
+    expect(edited).toContain("Raqamli ta’lim");
+    expect(edited).toContain("• OTM: TDIU"); // the other answers are kept
+
+    await click("edit");
+    await click("ed:length");
+    expect(texts(await click("l:7")).join("\n")).toContain("7 bet");
+
+    await click("go");
+    const generation = await Generation.findOne().lean();
+    expect(generation).toMatchObject({ type: "report", topic: "Raqamli ta’lim", length: 7, template: "minimal", status: "pending" });
+    expect(generation?.meta).toEqual({ university: "TDIU", subject: "Informatika" });
+    const again = await click("go");
+    expect(again.find((c) => c.method === "answerCallbackQuery")?.payload.text).toContain("eskirgan");
+    expect(await Generation.countDocuments()).toBe(1);
+  });
+
+  it("clears the title page when it is skipped while editing; essays have no title page to edit", async () => {
+    await send("/report");
+    await send("Raqamli iqtisodiyot");
+    await click("l:3");
+    await send("Talaba: Aliyev Vali");
+    await click("tpl:modern");
+    await click("edit");
+    await click("ed:meta");
+    expect(texts(await click("meta:skip")).join("\n")).not.toContain("Aliyev");
+    await click("go");
+    expect((await Generation.findOne().lean())?.meta).toEqual({});
+
+    await Generation.deleteMany({});
+    await send("/new");
+    await click("t:essay");
+    await send("Raqamli iqtisodiyot");
+    await click("l:800");
+    await click("tpl:modern");
+    expect(buttons(await click("edit"))).toEqual(["ed:topic", "ed:length", "ed:template", "ed:back"]);
+    expect(texts(await click("ed:back")).join("\n")).toContain("Tekshirib oling");
+  });
+
+  it("cancels a report at any step", async () => {
+    await send("/report");
+    await send("Raqamli iqtisodiyot");
+    expect(texts(await send("/cancel"))[0]).toContain("Bekor qilindi");
+    expect(texts(await send("Raqamli iqtisodiyot"))[0]).toContain("/new"); // no longer a topic
+
+    await send("/report");
+    await send("Raqamli iqtisodiyot");
+    await click("l:5");
+    await click("cancel");
+    expect((await click("meta:skip")).find((c) => c.method === "answerCallbackQuery")?.payload.text).toContain("eskirgan");
+  });
+
+  it("sends the text of a finished report in parts", async () => {
+    const user = await User.findOne({ telegramId: 555 });
+    const paragraph = "Sun’iy intellekt <ta’limda> & jamiyatda. ".repeat(40);
+    const generation = await Generation.create({
+      userId: user!._id,
+      source: "bot",
+      type: "report",
+      topic: "AI",
+      language: "uz-latn",
+      template: "minimal",
+      length: 5,
+      status: "done",
+      content: {
+        type: "report",
+        title: "Sun’iy intellekt",
+        sections: ["Kirish", "1. Asos", "2. Tahlil", "Xulosa"].map((heading, i) => ({ id: `s${i + 1}`, heading, paragraphs: [paragraph, paragraph] })),
+        references: ["Muallif A. Kitob. — Toshkent: Fan, 2020."],
+      },
+    });
+
+    const sent = (await click(`txt:${generation.id}`)).filter((c) => c.method === "sendMessage");
+    expect(sent.length).toBeGreaterThan(1);
+    expect(sent.every((c) => c.payload.parse_mode === "HTML")).toBe(true);
+    expect(String(sent[0]!.payload.text)).toMatch(/^<b>Sun’iy intellekt<\/b>/);
+    expect(String(sent[0]!.payload.text)).toContain("&lt;ta’limda&gt; &amp;");
+    expect(String(sent.at(-1)!.payload.text)).toContain("Topshirishdan oldin");
+
+    await Generation.updateOne({ _id: generation._id }, { $set: { userId: new mongoose.Types.ObjectId() } });
+    expect((await click(`txt:${generation.id}`)).find((c) => c.method === "sendMessage")).toBeUndefined();
   });
 
   it("converts text between scripts", async () => {

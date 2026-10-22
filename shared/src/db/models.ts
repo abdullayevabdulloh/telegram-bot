@@ -61,7 +61,7 @@ export const User: Model<IUser> = (models.User as Model<IUser>) ?? model<IUser>(
 // ------------------------------------------------------------------ Generation
 
 export interface GenerationStage {
-  key: "writing" | "outline" | "chapter" | "final";
+  key: "writing" | "outline" | "chapter" | "section" | "final";
   params?: Record<string, number>;
 }
 

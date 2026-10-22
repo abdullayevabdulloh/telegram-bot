@@ -2,13 +2,25 @@ import { exportDocument } from "@edugen/shared/export";
 import { logger } from "@edugen/shared/logger";
 import { isUzbek, type ExportFormat } from "@edugen/shared/schema";
 import { convertGenerationCopy, findOwnedGeneration, recentGenerations } from "@edugen/shared/services";
-import { callbacks, doneText, resultKeyboard } from "@edugen/shared/telegram";
-import { Markup, type Telegraf } from "telegraf";
+import { callbacks, documentMessages, doneText, resultKeyboard } from "@edugen/shared/telegram";
+import { Markup, TelegramError, type Telegraf } from "telegraf";
 import type { BotContext } from "../context";
 import { launchGeneration } from "./create";
 
-const TYPE_EMOJI = { essay: "📝", presentation: "📊", work: "📚" } as const;
+const TYPE_EMOJI = { essay: "📝", presentation: "📊", work: "📚", report: "🎤" } as const;
 const ID = "([a-f0-9]{24})";
+
+/** Sends one of several messages in a row; on a flood limit waits as long as Telegram asks and tries once more. */
+async function sendWithRetry(send: () => Promise<unknown>) {
+  try {
+    await send();
+  } catch (error) {
+    const retryAfter = error instanceof TelegramError ? error.parameters?.retry_after : undefined;
+    if (!retryAfter) throw error;
+    await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+    await send();
+  }
+}
 
 export async function sendHistory(ctx: BotContext) {
   const items = await recentGenerations(ctx.user._id, 10);
@@ -46,7 +58,16 @@ export function registerResults(bot: Telegraf<BotContext>) {
       await ctx.replyWithDocument({ source: file.buffer, filename: file.filename });
     } catch (error) {
       logger.error({ err: error, generationId: generation.id, format }, "Export failed");
-      await ctx.reply(ctx.t("export.failed"));
+      await ctx.reply(ctx.t(generation.type === "presentation" ? "export.failed" : "export.failedText"));
+    }
+  });
+
+  bot.action(new RegExp(`^txt:${ID}$`), async (ctx) => {
+    const generation = await findOwnedGeneration(ctx.match[1]!, ctx.user._id);
+    if (!generation?.content || generation.type === "presentation") return ctx.answerCbQuery(ctx.t("notFound"));
+    await ctx.answerCbQuery();
+    for (const text of documentMessages(generation.content, generation.language, ctx.ui)) {
+      await sendWithRetry(() => ctx.reply(text, { parse_mode: "HTML" }));
     }
   });
 

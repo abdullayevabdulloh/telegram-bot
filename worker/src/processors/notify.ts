@@ -3,7 +3,7 @@ import { Generation, User } from "@edugen/shared/db";
 import { t } from "@edugen/shared/i18n";
 import { logger } from "@edugen/shared/logger";
 import type { NotifyJob } from "@edugen/shared/queue";
-import { doneText, resultKeyboard } from "@edugen/shared/telegram";
+import { doneText, resultKeyboard, retryKeyboard } from "@edugen/shared/telegram";
 import { TelegramError, type Telegram } from "telegraf";
 
 /** Sends the final result (or failure) of a bot generation to the user's chat. */
@@ -29,10 +29,11 @@ export function createNotifyProcessor(telegram: Telegram) {
         });
       } else {
         const text = t(ui, "gen.failed");
+        const extra = { reply_markup: retryKeyboard(generation.id, ui) };
         const edited = progressMessageId
-          ? await telegram.editMessageText(chatId, progressMessageId, undefined, text).then(() => true, () => false)
+          ? await telegram.editMessageText(chatId, progressMessageId, undefined, text, extra).then(() => true, () => false)
           : false;
-        if (!edited) await telegram.sendMessage(chatId, text);
+        if (!edited) await telegram.sendMessage(chatId, text, extra);
       }
     } catch (error) {
       if (error instanceof TelegramError && error.code === 403) {

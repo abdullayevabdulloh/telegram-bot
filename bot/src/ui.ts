@@ -7,11 +7,12 @@ export const TYPE_KEYS: Record<DocType, MessageKey> = {
   essay: "type.essay",
   presentation: "type.presentation",
   work: "type.work",
+  report: "type.report",
 };
 
 export function mainMenu(lang: UiLanguage) {
   return Markup.keyboard([
-    [t(lang, "menu.new")],
+    [t(lang, "menu.new"), t(lang, "menu.report")],
     [t(lang, "menu.history"), t(lang, "menu.convert")],
     [t(lang, "menu.settings"), t(lang, "menu.plan"), t(lang, "menu.help")],
   ]).resize();

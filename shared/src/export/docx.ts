@@ -10,6 +10,7 @@ import {
   TextRun,
 } from "docx";
 import { docStrings } from "../i18n";
+import { hasTitlePage } from "../schema";
 import { getTemplate } from "../templates";
 import { hex, yearOf, type ExportInput } from "./common";
 
@@ -46,11 +47,12 @@ export async function renderDocx({ content, template, language, meta }: ExportIn
 
   const children: Paragraph[] = [];
 
-  if (content.type === "work") {
+  const titlePage = hasTitlePage(content.type);
+  if (titlePage) {
     // Title page
     if (meta?.university) children.push(centered(meta.university.toUpperCase(), { bold: true }));
     if (meta?.faculty) children.push(centered(meta.faculty));
-    children.push(centered(s.work, { bold: true, size: 44, color, before: mm(60) }));
+    children.push(centered(content.type === "report" ? s.report : s.work, { bold: true, size: 44, color, before: mm(60) }));
     if (meta?.subject) children.push(centered(`${s.subject}: ${meta.subject}`, { before: mm(6) }));
     children.push(centered(`${s.topic}: ${content.title}`, { bold: true, before: mm(4) }));
     const signatures = [
@@ -129,10 +131,10 @@ export async function renderDocx({ content, template, language, meta }: ExportIn
     sections: [
       {
         properties: {
-          titlePage: content.type === "work",
+          titlePage,
           page: { margin: { top: mm(20), bottom: mm(20), left: mm(30), right: mm(15) } },
         },
-        footers: { default: pageNumber, first: content.type === "work" ? new Footer({ children: [] }) : pageNumber },
+        footers: { default: pageNumber, first: titlePage ? new Footer({ children: [] }) : pageNumber },
         children,
       },
     ],

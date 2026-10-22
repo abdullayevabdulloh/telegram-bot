@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const DOC_TYPES = ["essay", "presentation", "work"] as const;
+export const DOC_TYPES = ["essay", "presentation", "work", "report"] as const;
 export const LANGUAGES = ["uz-latn", "uz-cyrl", "ru", "en"] as const;
 export const UI_LANGUAGES = ["uz-latn", "uz-cyrl", "ru"] as const;
 export const TEMPLATE_IDS = ["modern", "minimal", "dark", "aurora", "pastel"] as const;
@@ -90,6 +90,7 @@ export const LENGTH_RULES = {
   essay: { unit: "words", default: 800, min: 400, max: 2000, presets: [500, 800, 1200, 2000] },
   presentation: { unit: "slides", default: 10, min: 5, max: 20, presets: [6, 8, 10, 12, 15, 20] },
   work: { unit: "pages", default: 12, min: 5, max: 25, presets: [6, 8, 10, 15, 20, 25] },
+  report: { unit: "pages", default: 5, min: 3, max: 10, presets: [3, 5, 7, 10] },
 } as const satisfies Record<DocType, { unit: string; default: number; min: number; max: number; presets: number[] }>;
 
 export type LengthUnit = (typeof LENGTH_RULES)[DocType]["unit"];
@@ -99,7 +100,13 @@ export const FORMATS_BY_TYPE: Record<DocType, ExportFormat[]> = {
   essay: ["docx", "pdf"],
   presentation: ["pptx", "pdf"],
   work: ["docx", "pdf"],
+  report: ["docx", "pdf"],
 };
+
+/** Academic papers with a title page and a plan; their title-page data is asked from the user. */
+export function hasTitlePage(type: DocType): type is "work" | "report" {
+  return type === "work" || type === "report";
+}
 
 export const TOPIC_MIN = 3;
 export const TOPIC_MAX = 200;
@@ -108,7 +115,14 @@ export const TOPIC_MAX = 200;
 export const TopicSchema = z
   .string()
   .transform((s) => s.replace(/\s+/g, " ").trim())
-  .pipe(z.string().min(TOPIC_MIN).max(TOPIC_MAX));
+  .pipe(
+    z
+      .string()
+      .min(TOPIC_MIN)
+      .max(TOPIC_MAX)
+      // Emojis or punctuation alone are not a topic
+      .refine((s) => (s.match(/[\p{L}\p{N}]/gu)?.length ?? 0) >= TOPIC_MIN, "Topic needs letters or digits"),
+  );
 
 export const WORDS_PER_PAGE = 270;
 

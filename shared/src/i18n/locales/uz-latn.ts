@@ -2,9 +2,10 @@
 // {placeholders}, HTML tags and /commands are kept as-is by the transliterator.
 export const uzLatn = {
   welcome:
-    "Assalomu alaykum, {name}! 👋\n\nMen <b>EduGen AI</b> — esse, taqdimot va mustaqil ishlarni bir necha daqiqada tayyorlab beraman.\n\nPastdagi menyudan tanlang yoki /new buyrug‘ini yuboring.",
+    "Assalomu alaykum, {name}! 👋\n\nMen <b>EduGen AI</b> — esse, taqdimot, mustaqil ish va dokladlarni bir necha daqiqada tayyorlab beraman.\n\nPastdagi menyudan tanlang yoki /new buyrug‘ini yuboring.",
 
   "menu.new": "📝 Yangi hujjat",
+  "menu.report": "🎤 Doklad yaratish",
   "menu.history": "🗂 Hujjatlarim",
   "menu.convert": "🔤 Lotin ↔ Kirill",
   "menu.settings": "⚙️ Sozlamalar",
@@ -14,13 +15,14 @@ export const uzLatn = {
   "type.essay": "📝 Esse",
   "type.presentation": "📊 Taqdimot",
   "type.work": "📚 Mustaqil ish",
+  "type.report": "🎤 Doklad",
 
   "new.chooseType": "Nima tayyorlaymiz?",
   "new.askTopic": "{type} mavzusini yozing.\n\nMasalan: <i>Sun’iy intellektning ta’limdagi o‘rni</i>",
-  "new.topicInvalid": "Mavzu {min} dan {max} belgigacha bo‘lishi kerak. Qaytadan yozing:",
+  "new.topicInvalid": "Mavzu {min} dan {max} belgigacha bo‘lishi va so‘zlardan iborat bo‘lishi kerak. Qaytadan yozing:",
   "new.chooseLength.words": "Hajmini tanlang:",
   "new.chooseLength.slides": "Nechta slayd bo‘lsin?",
-  "new.chooseLength.pages": "Necha bet bo‘lsin?",
+  "new.chooseLength.pages": "Necha bet bo‘lsin? (titul varaq va rejadan tashqari)",
   "unit.words": "{n} so‘z",
   "unit.slides": "{n} slayd",
   "unit.pages": "{n} bet",
@@ -29,7 +31,23 @@ export const uzLatn = {
   "new.metaEmpty": "Hech qanday ma’lumot topilmadi. Namunadagidek «Nom: qiymat» ko‘rinishida yuboring yoki «O‘tkazib yuborish»ni bosing.",
   "new.chooseTemplate": "Dizayn shablonini tanlang:",
   "new.confirm":
-    "Tekshirib oling:\n\n📄 Tur: {type}\n📝 Mavzu: <b>{topic}</b>\n🌐 Til: {language}\n📏 Hajm: {length}\n🎨 Shablon: {template}",
+    "Tekshirib oling:\n\n📄 Tur: {type}\n📝 Mavzu: <b>{topic}</b>\n🌐 Til: {language}\n📏 Hajm: {length}\n🎨 Shablon: {template}{meta}",
+  "new.confirmMeta": "\n🎓 Titul:\n{fields}",
+  "new.edit": "✏️ Tahrirlash",
+  "new.useButtons": "Iltimos, yuqoridagi tugmalardan birini tanlang. Bekor qilish: /cancel",
+  "edit.choose": "Nimani o‘zgartiramiz?",
+  "edit.topic": "📝 Mavzu",
+  "edit.length": "📏 Hajm",
+  "edit.meta": "🎓 Titul",
+  "edit.template": "🎨 Shablon",
+  "meta.university": "OTM",
+  "meta.faculty": "Fakultet",
+  "meta.subject": "Fan",
+  "meta.student": "Talaba",
+  "meta.group": "Guruh",
+  "meta.teacher": "O‘qituvchi",
+  "meta.city": "Shahar",
+  "meta.year": "Yil",
   "new.create": "✅ Yaratish",
   "new.changeLanguage": "🌐 Tilni o‘zgartirish",
   "new.chooseLanguage": "Bu hujjat qaysi tilda bo‘lsin?",
@@ -48,9 +66,12 @@ export const uzLatn = {
   "stage.writing": "Matn yozilmoqda",
   "stage.outline": "Reja tuzilmoqda",
   "stage.chapter": "{n}/{total}-bob yozilmoqda",
+  "stage.section": "{n}/{total}-bo‘lim yozilmoqda",
   "stage.final": "Kirish, xulosa va adabiyotlar",
 
   "btn.regenerate": "🔁 Qayta yaratish",
+  "btn.retry": "🔁 Qayta urinish",
+  "btn.readText": "📖 Matnni o‘qish",
   "btn.toCyrillic": "🔤 Кириллча",
   "btn.toLatin": "🔤 Lotincha",
   "btn.skip": "⏭ O‘tkazib yuborish",
@@ -59,6 +80,8 @@ export const uzLatn = {
 
   "export.preparing": "⏳ {format} tayyorlanmoqda…",
   "export.failed": "Faylni tayyorlashda xatolik. Qayta urinib ko‘ring.",
+  "export.failedText": "Faylni tayyorlashda xatolik. Qayta urinib ko‘ring yoki «📖 Matnni o‘qish» tugmasi orqali matnni oling.",
+  "text.reminder": "⚠️ Topshirishdan oldin faktlarni va universitet format talablarini tekshiring.",
 
   "convert.ask": "🔤 Lotin yoki kirill yozuvidagi matnni yuboring — boshqa yozuvga o‘girib beraman.\n\nChiqish: /cancel",
   "convert.noText": "Matn topilmadi. Oddiy matn yuboring.",
@@ -82,7 +105,7 @@ export const uzLatn = {
     "💎 Tarif: <b>Bepul</b> — barcha shablon va imkoniyatlar ochiq.\n\nBugun qoldi: <b>{left}</b> / {limit} ta hujjat\n\nLimit har kuni 00:00 da (Toshkent vaqti) yangilanadi.",
 
   help:
-    "<b>EduGen AI</b> — esse, taqdimot va mustaqil ish tayyorlaydi.\n\n/new — yangi hujjat\n/history — oxirgi hujjatlarim\n/convert — lotin ↔ kirill\n/settings — til, yozuv va shablon\n/plan — tarif va limit\n/cancel — joriy amalni bekor qilish\n\n⚠️ AI xato qilishi mumkin — natijani tekshirib chiqing.",
+    "<b>EduGen AI</b> — esse, taqdimot, mustaqil ish va doklad tayyorlaydi.\n\n/new — yangi hujjat\n/report — doklad\n/history — oxirgi hujjatlarim\n/convert — lotin ↔ kirill\n/settings — til, yozuv va shablon\n/plan — tarif va limit\n/cancel — joriy amalni bekor qilish\n\n⚠️ AI xato qilishi mumkin — natijani tekshirib chiqing.",
   cancelled: "Bekor qilindi. /new — yangi hujjat.",
   idleHint: "Yangi hujjat uchun /new buyrug‘ini yuboring yoki menyudan tanlang.",
   notFound: "Hujjat topilmadi.",
@@ -90,6 +113,7 @@ export const uzLatn = {
 
   "cmd.start": "Boshlash",
   "cmd.new": "Yangi hujjat yaratish",
+  "cmd.report": "Doklad yaratish",
   "cmd.history": "Oxirgi hujjatlarim",
   "cmd.convert": "Lotin ↔ kirill o‘girish",
   "cmd.settings": "Til, yozuv va shablon",

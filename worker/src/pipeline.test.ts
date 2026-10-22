@@ -121,6 +121,8 @@ describe("generation pipeline", () => {
     await waitFor(async () => (await Generation.findById(generation._id).lean())?.status === "failed", 20_000);
     await waitFor(async () => telegram.editMessageText.mock.calls.some((c) => String((c as unknown[])[3]).startsWith("😔")));
     expect(await usedToday(user._id, "generation")).toBe(0);
+    const failed = telegram.editMessageText.mock.calls.find((c) => String((c as unknown[])[3]).startsWith("😔")) as unknown[];
+    expect(failed[4]).toEqual({ reply_markup: { inline_keyboard: [[{ text: "🔁 Qayta urinish", callback_data: `rg:${generation.id}` }]] } });
   });
 
   it("refuses when the daily limit is used up", async () => {

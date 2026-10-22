@@ -2,9 +2,10 @@ import type { Messages } from "./uz-latn";
 
 export const ru: Messages = {
   welcome:
-    "Здравствуйте, {name}! 👋\n\nЯ <b>EduGen AI</b> — за несколько минут подготовлю эссе, презентацию или самостоятельную работу.\n\nВыберите в меню ниже или отправьте /new.",
+    "Здравствуйте, {name}! 👋\n\nЯ <b>EduGen AI</b> — за несколько минут подготовлю эссе, презентацию, самостоятельную работу или доклад.\n\nВыберите в меню ниже или отправьте /new.",
 
   "menu.new": "📝 Новый документ",
+  "menu.report": "🎤 Создать доклад",
   "menu.history": "🗂 Мои документы",
   "menu.convert": "🔤 Латиница ↔ Кириллица",
   "menu.settings": "⚙️ Настройки",
@@ -14,13 +15,14 @@ export const ru: Messages = {
   "type.essay": "📝 Эссе",
   "type.presentation": "📊 Презентация",
   "type.work": "📚 Самостоятельная работа",
+  "type.report": "🎤 Доклад",
 
   "new.chooseType": "Что подготовим?",
   "new.askTopic": "Напишите тему: {type}\n\nНапример: <i>Роль искусственного интеллекта в образовании</i>",
-  "new.topicInvalid": "Тема должна быть от {min} до {max} символов. Напишите ещё раз:",
+  "new.topicInvalid": "Тема должна быть от {min} до {max} символов и состоять из слов. Напишите ещё раз:",
   "new.chooseLength.words": "Выберите объём:",
   "new.chooseLength.slides": "Сколько слайдов?",
-  "new.chooseLength.pages": "Сколько страниц?",
+  "new.chooseLength.pages": "Сколько страниц? (без титульного листа и плана)",
   "unit.words": "{n} слов",
   "unit.slides": "{n} слайдов",
   "unit.pages": "{n} стр.",
@@ -29,7 +31,23 @@ export const ru: Messages = {
   "new.metaEmpty": "Данные не найдены. Отправьте в виде «Название: значение», как в образце, или нажмите «Пропустить».",
   "new.chooseTemplate": "Выберите шаблон оформления:",
   "new.confirm":
-    "Проверьте:\n\n📄 Тип: {type}\n📝 Тема: <b>{topic}</b>\n🌐 Язык: {language}\n📏 Объём: {length}\n🎨 Шаблон: {template}",
+    "Проверьте:\n\n📄 Тип: {type}\n📝 Тема: <b>{topic}</b>\n🌐 Язык: {language}\n📏 Объём: {length}\n🎨 Шаблон: {template}{meta}",
+  "new.confirmMeta": "\n🎓 Титульный лист:\n{fields}",
+  "new.edit": "✏️ Изменить",
+  "new.useButtons": "Пожалуйста, выберите вариант кнопками выше. Отмена: /cancel",
+  "edit.choose": "Что изменить?",
+  "edit.topic": "📝 Тема",
+  "edit.length": "📏 Объём",
+  "edit.meta": "🎓 Титульный лист",
+  "edit.template": "🎨 Шаблон",
+  "meta.university": "ВУЗ",
+  "meta.faculty": "Факультет",
+  "meta.subject": "Предмет",
+  "meta.student": "Студент",
+  "meta.group": "Группа",
+  "meta.teacher": "Преподаватель",
+  "meta.city": "Город",
+  "meta.year": "Год",
   "new.create": "✅ Создать",
   "new.changeLanguage": "🌐 Изменить язык",
   "new.chooseLanguage": "На каком языке подготовить документ?",
@@ -48,9 +66,12 @@ export const ru: Messages = {
   "stage.writing": "Пишу текст",
   "stage.outline": "Составляю план",
   "stage.chapter": "Пишу главу {n}/{total}",
+  "stage.section": "Пишу раздел {n}/{total}",
   "stage.final": "Введение, заключение и литература",
 
   "btn.regenerate": "🔁 Создать заново",
+  "btn.retry": "🔁 Попробовать снова",
+  "btn.readText": "📖 Читать текст",
   "btn.toCyrillic": "🔤 Кириллча",
   "btn.toLatin": "🔤 Lotincha",
   "btn.skip": "⏭ Пропустить",
@@ -59,6 +80,8 @@ export const ru: Messages = {
 
   "export.preparing": "⏳ Готовлю {format}…",
   "export.failed": "Ошибка при подготовке файла. Попробуйте ещё раз.",
+  "export.failedText": "Ошибка при подготовке файла. Попробуйте ещё раз или получите текст кнопкой «📖 Читать текст».",
+  "text.reminder": "⚠️ Перед сдачей проверьте факты и требования вуза к оформлению.",
 
   "convert.ask": "🔤 Отправьте узбекский текст латиницей или кириллицей — переведу в другую графику.\n\nВыход: /cancel",
   "convert.noText": "Текст не найден. Отправьте обычный текст.",
@@ -82,7 +105,7 @@ export const ru: Messages = {
     "💎 Тариф: <b>Бесплатный</b> — все шаблоны и возможности открыты.\n\nОсталось сегодня: <b>{left}</b> / {limit} док.\n\nЛимит обновляется каждый день в 00:00 (по Ташкенту).",
 
   help:
-    "<b>EduGen AI</b> — готовит эссе, презентации и самостоятельные работы.\n\n/new — новый документ\n/history — мои документы\n/convert — латиница ↔ кириллица\n/settings — язык, графика и шаблон\n/plan — тариф и лимит\n/cancel — отменить текущее действие\n\n⚠️ ИИ может ошибаться — проверяйте результат.",
+    "<b>EduGen AI</b> — готовит эссе, презентации, самостоятельные работы и доклады.\n\n/new — новый документ\n/report — доклад\n/history — мои документы\n/convert — латиница ↔ кириллица\n/settings — язык, графика и шаблон\n/plan — тариф и лимит\n/cancel — отменить текущее действие\n\n⚠️ ИИ может ошибаться — проверяйте результат.",
   cancelled: "Отменено. /new — новый документ.",
   idleHint: "Чтобы создать документ, отправьте /new или выберите в меню.",
   notFound: "Документ не найден.",
@@ -90,6 +113,7 @@ export const ru: Messages = {
 
   "cmd.start": "Начать",
   "cmd.new": "Создать документ",
+  "cmd.report": "Создать доклад",
   "cmd.history": "Мои документы",
   "cmd.convert": "Латиница ↔ кириллица",
   "cmd.settings": "Язык, графика и шаблон",

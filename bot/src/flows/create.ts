@@ -1,7 +1,9 @@
-import { LANGUAGE_NAMES } from "@edugen/shared/i18n";
+import { LANGUAGE_NAMES, type MessageKey } from "@edugen/shared/i18n";
 import { lengthPresets } from "@edugen/shared/limits";
 import { escapeHtml } from "@edugen/shared/telegram";
 import {
+  DOC_TYPES,
+  hasTitlePage,
   LANGUAGES,
   LENGTH_RULES,
   TEMPLATE_IDS,
@@ -12,14 +14,20 @@ import {
   type DocType,
   type Language,
   type TemplateId,
+  type TitleMeta,
 } from "@edugen/shared/schema";
 import { AlreadyGeneratingError, QuotaExceededError, startGeneration, type StartGenerationInput } from "@edugen/shared/services";
 import { templates } from "@edugen/shared/templates";
 import { Markup, type Telegraf } from "telegraf";
-import type { BotContext } from "../context";
+import type { BotContext, Step } from "../context";
 import { cancelButton, dropButtons, editOrReply, rows, TYPE_KEYS } from "../ui";
 
 const unitText = (ctx: BotContext, type: DocType, n: number) => ctx.t(`unit.${LENGTH_RULES[type].unit}`, { n });
+
+/** Steps that wait for a button; free text there gets a hint instead of being lost. */
+const BUTTON_STEPS: Step[] = ["choose_type", "choose_length", "choose_template", "confirm"];
+
+const META_FIELDS = ["university", "faculty", "subject", "student", "group", "teacher", "city", "year"] as const satisfies (keyof TitleMeta)[];
 
 export async function askType(ctx: BotContext) {
   ctx.session = { step: "choose_type" };
@@ -30,6 +38,20 @@ export async function askType(ctx: BotContext) {
       [cancelButton(ctx)],
     ]),
   );
+}
+
+async function askTopic(ctx: BotContext) {
+  ctx.session.step = "waiting_topic";
+  await ctx.reply(ctx.t("new.askTopic", { type: ctx.t(TYPE_KEYS[ctx.session.type!]) }), {
+    parse_mode: "HTML",
+    ...Markup.inlineKeyboard([cancelButton(ctx)]),
+  });
+}
+
+/** Main-menu shortcut: a report without the type step. */
+export async function askReportTopic(ctx: BotContext) {
+  ctx.session = { step: "waiting_topic", type: "report" };
+  await askTopic(ctx);
 }
 
 async function askLength(ctx: BotContext) {
@@ -45,6 +67,14 @@ async function askLength(ctx: BotContext) {
   );
 }
 
+async function askMeta(ctx: BotContext) {
+  ctx.session.step = "waiting_meta";
+  await ctx.reply(ctx.t("new.askMeta"), {
+    parse_mode: "HTML",
+    ...Markup.inlineKeyboard([[Markup.button.callback(ctx.t("btn.skip"), "meta:skip")], [cancelButton(ctx)]]),
+  });
+}
+
 async function askTemplate(ctx: BotContext) {
   ctx.session.step = "choose_template";
   const buttons = TEMPLATE_IDS.map((id) => {
@@ -54,9 +84,18 @@ async function askTemplate(ctx: BotContext) {
   await ctx.reply(ctx.t("new.chooseTemplate"), Markup.inlineKeyboard([...rows(buttons, 3), [cancelButton(ctx)]]));
 }
 
+/** Filled title-page fields, one per line; empty when nothing was given. */
+function metaText(ctx: BotContext, meta: TitleMeta | undefined): string {
+  const lines = META_FIELDS.filter((field) => meta?.[field] !== undefined).map(
+    (field) => `• ${ctx.t(`meta.${field}` as MessageKey)}: ${escapeHtml(String(meta![field]))}`,
+  );
+  return lines.length ? ctx.t("new.confirmMeta", { fields: lines.join("\n") }) : "";
+}
+
 async function showConfirm(ctx: BotContext) {
   const s = ctx.session;
   ctx.session.step = "confirm";
+  ctx.session.editing = undefined;
   const language = s.language ?? ctx.user.settings.contentLanguage;
   const text = ctx.t("new.confirm", {
     type: ctx.t(TYPE_KEYS[s.type!]),
@@ -64,12 +103,13 @@ async function showConfirm(ctx: BotContext) {
     language: LANGUAGE_NAMES[language],
     length: unitText(ctx, s.type!, s.length!),
     template: templates[s.template!].name,
+    meta: hasTitlePage(s.type!) ? metaText(ctx, s.meta) : "",
   });
   await editOrReply(ctx, text, {
     parse_mode: "HTML",
     ...Markup.inlineKeyboard([
       [Markup.button.callback(ctx.t("new.create"), "go")],
-      [Markup.button.callback(ctx.t("new.changeLanguage"), "chl")],
+      [Markup.button.callback(ctx.t("new.edit"), "edit"), Markup.button.callback(ctx.t("new.changeLanguage"), "chl")],
       [cancelButton(ctx)],
     ]),
   });
@@ -99,43 +139,39 @@ export async function launchGeneration(ctx: BotContext, input: Omit<StartGenerat
 }
 
 export function registerCreate(bot: Telegraf<BotContext>) {
-  bot.action(/^t:(essay|presentation|work)$/, async (ctx) => {
+  bot.action(new RegExp(`^t:(${DOC_TYPES.join("|")})$`), async (ctx) => {
     const type = ctx.match[1] as DocType;
     ctx.session = { step: "waiting_topic", type };
     await ctx.answerCbQuery();
     await editOrReply(ctx, `${ctx.t("new.chooseType")} ${ctx.t(TYPE_KEYS[type])}`);
-    await ctx.reply(ctx.t("new.askTopic", { type: ctx.t(TYPE_KEYS[type]) }), {
-      parse_mode: "HTML",
-      ...Markup.inlineKeyboard([cancelButton(ctx)]),
-    });
+    await askTopic(ctx);
   });
 
   bot.action(/^l:(\d+)$/, async (ctx) => {
-    const { type } = ctx.session;
+    const { type, step } = ctx.session;
     const length = Number(ctx.match[1]);
-    if (!type || !lengthPresets(type).includes(length)) {
+    if (!type || step !== "choose_length" || !lengthPresets(type).includes(length)) {
       await ctx.answerCbQuery(ctx.t("new.expired"));
       return;
     }
     ctx.session.length = length;
     await ctx.answerCbQuery();
     await editOrReply(ctx, `📏 ${unitText(ctx, type, length)}`);
-    if (type === "work") {
-      ctx.session.step = "waiting_meta";
-      await ctx.reply(ctx.t("new.askMeta"), {
-        parse_mode: "HTML",
-        ...Markup.inlineKeyboard([[Markup.button.callback(ctx.t("btn.skip"), "meta:skip")], [cancelButton(ctx)]]),
-      });
-    } else {
-      await askTemplate(ctx);
-    }
+    if (ctx.session.editing) await showConfirm(ctx);
+    else if (hasTitlePage(type)) await askMeta(ctx);
+    else await askTemplate(ctx);
   });
 
   bot.action("meta:skip", async (ctx) => {
     if (ctx.session.step !== "waiting_meta") return ctx.answerCbQuery(ctx.t("new.expired"));
     await ctx.answerCbQuery();
     await dropButtons(ctx);
-    await askTemplate(ctx);
+    if (ctx.session.editing) {
+      ctx.session.meta = undefined;
+      await showConfirm(ctx);
+    } else {
+      await askTemplate(ctx);
+    }
   });
 
   bot.action(new RegExp(`^tpl:(${TEMPLATE_IDS.join("|")})$`), async (ctx) => {
@@ -161,6 +197,37 @@ export function registerCreate(bot: Telegraf<BotContext>) {
     ctx.session.language = ctx.match[1] as Language;
     await ctx.answerCbQuery();
     await showConfirm(ctx);
+  });
+
+  bot.action("edit", async (ctx) => {
+    const { step, type } = ctx.session;
+    if (step !== "confirm" || !type) return ctx.answerCbQuery(ctx.t("new.expired"));
+    await ctx.answerCbQuery();
+    const fields: ("topic" | "length" | "meta" | "template")[] = ["topic", "length", ...(hasTitlePage(type) ? (["meta"] as const) : []), "template"];
+    await editOrReply(
+      ctx,
+      ctx.t("edit.choose"),
+      Markup.inlineKeyboard([
+        ...rows(fields.map((field) => Markup.button.callback(ctx.t(`edit.${field}`), `ed:${field}`)), 2),
+        [Markup.button.callback(ctx.t("btn.back"), "ed:back")],
+      ]),
+    );
+  });
+
+  bot.action(/^ed:(topic|length|meta|template|back)$/, async (ctx) => {
+    const field = ctx.match[1]!;
+    const { step, type, topic, length, template } = ctx.session;
+    if (step !== "confirm" || !type || !topic || !length || !template) return ctx.answerCbQuery(ctx.t("new.expired"));
+    if (field === "meta" && !hasTitlePage(type)) return ctx.answerCbQuery(ctx.t("new.expired"));
+    await ctx.answerCbQuery();
+    if (field === "back") return showConfirm(ctx);
+
+    ctx.session.editing = true;
+    await dropButtons(ctx);
+    if (field === "topic") await askTopic(ctx);
+    else if (field === "length") await askLength(ctx);
+    else if (field === "meta") await askMeta(ctx);
+    else await askTemplate(ctx);
   });
 
   bot.action("go", async (ctx) => {
@@ -195,6 +262,10 @@ export async function handleCreateText(ctx: BotContext, text: string): Promise<b
       return true;
     }
     ctx.session.topic = topic.data;
+    if (ctx.session.editing) {
+      await showConfirm(ctx);
+      return true;
+    }
     ctx.session.template = ctx.user.settings.defaultTemplate;
     await askLength(ctx);
     return true;
@@ -206,7 +277,12 @@ export async function handleCreateText(ctx: BotContext, text: string): Promise<b
       return true;
     }
     ctx.session.meta = meta;
-    await askTemplate(ctx);
+    if (ctx.session.editing) await showConfirm(ctx);
+    else await askTemplate(ctx);
+    return true;
+  }
+  if (BUTTON_STEPS.includes(step)) {
+    await ctx.reply(ctx.t("new.useButtons"));
     return true;
   }
   return false;

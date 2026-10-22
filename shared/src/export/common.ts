@@ -27,6 +27,7 @@ const TYPE_SUFFIX: Record<DocType, string> = {
   essay: "esse",
   presentation: "taqdimot",
   work: "mustaqil-ish",
+  report: "doklad",
 };
 
 /** ASCII file name: "Sun’iy intellekt" → "suniy-intellekt_esse.pdf". */

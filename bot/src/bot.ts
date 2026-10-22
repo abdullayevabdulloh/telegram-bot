@@ -7,7 +7,7 @@ import { session, Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
 import type { BotContext } from "./context";
 import { askConvertText, handleConvertText } from "./flows/convert";
-import { askType, handleCreateText, registerCreate } from "./flows/create";
+import { askReportTopic, askType, handleCreateText, registerCreate } from "./flows/create";
 import { sendHelp, sendPlan, sendStats } from "./flows/info";
 import { registerResults, sendHistory } from "./flows/results";
 import { registerSettings, sendSettings } from "./flows/settings";
@@ -48,6 +48,7 @@ export function createBot(token: string): Telegraf<BotContext> {
   // Commands and menu buttons always interrupt the current step.
   const actions: [command: string, menuKey: MessageKey, handler: (ctx: BotContext) => Promise<unknown>][] = [
     ["new", "menu.new", askType],
+    ["report", "menu.report", askReportTopic],
     ["history", "menu.history", sendHistory],
     ["convert", "menu.convert", askConvertText],
     ["settings", "menu.settings", sendSettings],
@@ -97,7 +98,7 @@ export function createBot(token: string): Telegraf<BotContext> {
 /** Command list shown in the Telegram menu, per client language. */
 export async function setCommands(bot: Telegraf<BotContext>) {
   const commands = (lang: UiLanguage) =>
-    (["start", "new", "history", "convert", "settings", "plan", "help", "cancel"] as const).map((command) => ({
+    (["start", "new", "report", "history", "convert", "settings", "plan", "help", "cancel"] as const).map((command) => ({
       command,
       description: t(lang, `cmd.${command}`),
     }));

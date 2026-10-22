@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import { docStrings } from "../i18n";
 import type { LoadedImage } from "../images";
+import { hasTitlePage } from "../schema";
 import { getTemplate, type Template } from "../templates";
 import { yearOf, type ExportInput } from "./common";
 import { buildSlides, FONTS, lineGap, SLIDE_H, SLIDE_W, type Element, type Run } from "./slides";
@@ -52,8 +53,9 @@ function documentPdf({ content, template, language, meta }: ExportInput): Promis
     doc.text(text, { width, align: "justify", indent: 28, lineGap: 4, paragraphGap: 6 });
   };
 
-  if (content.type === "work") {
-    workTitlePage(doc, t, s, content.title, meta);
+  const titlePage = hasTitlePage(content.type);
+  if (titlePage) {
+    paperTitlePage(doc, t, content.type === "report" ? s.report : s.work, s, content.title, meta);
     if (content.plan?.length) {
       heading(s.plan.toUpperCase(), { center: true, newPage: true });
       doc.font("Regular").fontSize(13).fillColor(t.print.text);
@@ -82,11 +84,18 @@ function documentPdf({ content, template, language, meta }: ExportInput): Promis
     }
   }
 
-  addPageNumbers(doc, t.print.muted, content.type === "work" ? 1 : 0);
+  addPageNumbers(doc, t.print.muted, titlePage ? 1 : 0);
   return toBuffer(doc);
 }
 
-function workTitlePage(doc: Doc, t: Template, s: ReturnType<typeof docStrings>, title: string, meta: ExportInput["meta"]) {
+function paperTitlePage(
+  doc: Doc,
+  t: Template,
+  kindLabel: string,
+  s: ReturnType<typeof docStrings>,
+  title: string,
+  meta: ExportInput["meta"],
+) {
   const { left } = A4_MARGINS;
   const width = doc.page.width - A4_MARGINS.left - A4_MARGINS.right;
   const center = (text: string, size: number, fontName = "Regular", color = t.print.text) =>
@@ -97,7 +106,7 @@ function workTitlePage(doc: Doc, t: Template, s: ReturnType<typeof docStrings>, 
   if (meta?.faculty) center(meta.faculty, 12);
 
   doc.y = 280;
-  center(s.work, 26, "Bold", t.print.heading);
+  center(kindLabel, 26, "Bold", t.print.heading);
   doc.moveDown(0.6);
   if (meta?.subject) center(`${s.subject}: ${meta.subject}`, 13);
   doc.moveDown(0.4);
