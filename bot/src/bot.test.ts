@@ -123,6 +123,19 @@ describe("bot conversation", () => {
     expect(generation?.meta).toEqual({ university: "TDIU", student: "Aliyev Vali", group: "IQ-21" });
   });
 
+  it("offers the report in the Russian UI: menu button and /new list", async () => {
+    await User.deleteMany({});
+    await send("/start");
+    await click("onb:ru");
+
+    const types = await send("/new");
+    expect(buttons(types)).toEqual(["t:essay", "t:presentation", "t:work", "t:report", "cancel"]);
+    expect(JSON.stringify(types)).toContain("🎤 Доклад");
+
+    const topic = await send("🎤 Создать доклад");
+    expect(texts(topic)[0]).toContain("Напишите тему: 🎤 Доклад");
+  });
+
   it("creates a report from the main-menu shortcut and edits it before creating", async () => {
     for (const lang of ["uz-latn", "uz-cyrl", "ru"] as const) {
       expect(JSON.stringify(mainMenu(lang).reply_markup.keyboard[0])).toMatch(/🎤/);

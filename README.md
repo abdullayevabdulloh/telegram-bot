@@ -1,6 +1,6 @@
 # 🎓 EduGen AI Platform
 
-AI yordamida **esse, taqdimot, mustaqil ish** yaratadigan, ularni **PDF, DOCX, PPTX** formatida eksport qiladigan
+AI yordamida **esse, taqdimot, mustaqil ish, doklad** yaratadigan, ularni **PDF, DOCX, PPTX** formatida eksport qiladigan
 va Canva-style web editorga ega fullstack platforma — **Telegram bot + web**.
 
 > 🚧 **Holat:** 1-bosqich (Telegram bot + worker) yozilgan va testlangan; web (2-bosqich) hali yo‘q.
@@ -32,13 +32,14 @@ EduGen AI — bu:
 | 📝 Esse | Sarlavha, kirish, asosiy qism, xulosa |
 | 📊 Taqdimot | Slaydlar: sarlavha + punktlar + spiker izohi |
 | 📚 Mustaqil ish | Titul varaq, reja, kirish, boblar, xulosa, adabiyotlar |
+| 🎤 Doklad | Titul varaq, reja, kirish, 2–3 bo‘lim, xulosa, adabiyotlar (3–10 bet). Bosh menyuda `🎤 Doklad yaratish`, `/report` — tafsilotlar: [docs/DOKLAD.md](docs/DOKLAD.md) |
 
 ### 📄 Export
 
 | Format | Kutubxona | Turlar |
 |--------|-----------|--------|
 | PDF (dizayn bilan) | `pdfkit` | hammasi |
-| DOCX | `docx` | esse, mustaqil ish |
+| DOCX | `docx` | esse, mustaqil ish, doklad |
 | PPTX | `pptxgenjs` | taqdimot |
 
 ### 🌐 Til va yozuv
